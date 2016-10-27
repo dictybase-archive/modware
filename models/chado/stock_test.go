@@ -509,56 +509,6 @@ func testStockOneToOneStockPubUsingStockPub(t *testing.T) {
 	}
 }
 
-func testStockOneToOneStockItemOrderUsingItemStockItemOrder(t *testing.T) {
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var foreign StockItemOrder
-	var local Stock
-
-	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &foreign, stockItemOrderDBTypes, true, stockItemOrderColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StockItemOrder struct: %s", err)
-	}
-	if err := randomize.Struct(seed, &local, stockDBTypes, true, stockColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Stock struct: %s", err)
-	}
-
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreign.ItemID = local.StockID
-	if err := foreign.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	check, err := local.ItemStockItemOrder(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if check.ItemID != foreign.ItemID {
-		t.Errorf("want: %v, got %v", foreign.ItemID, check.ItemID)
-	}
-
-	slice := StockSlice{&local}
-	if err = local.L.LoadItemStockItemOrder(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.ItemStockItemOrder == nil {
-		t.Error("struct should have been eager loaded")
-	}
-
-	local.R.ItemStockItemOrder = nil
-	if err = local.L.LoadItemStockItemOrder(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.ItemStockItemOrder == nil {
-		t.Error("struct should have been eager loaded")
-	}
-}
-
 func testStockOneToOneStockcollectionStockUsingStockcollectionStock(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -605,6 +555,56 @@ func testStockOneToOneStockcollectionStockUsingStockcollectionStock(t *testing.T
 		t.Fatal(err)
 	}
 	if local.R.StockcollectionStock == nil {
+		t.Error("struct should have been eager loaded")
+	}
+}
+
+func testStockOneToOneStockItemOrderUsingItemStockItemOrder(t *testing.T) {
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var foreign StockItemOrder
+	var local Stock
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &foreign, stockItemOrderDBTypes, true, stockItemOrderColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize StockItemOrder struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &local, stockDBTypes, true, stockColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Stock struct: %s", err)
+	}
+
+	if err := local.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreign.ItemID = local.StockID
+	if err := foreign.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := local.ItemStockItemOrder(tx).One()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check.ItemID != foreign.ItemID {
+		t.Errorf("want: %v, got %v", foreign.ItemID, check.ItemID)
+	}
+
+	slice := StockSlice{&local}
+	if err = local.L.LoadItemStockItemOrder(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ItemStockItemOrder == nil {
+		t.Error("struct should have been eager loaded")
+	}
+
+	local.R.ItemStockItemOrder = nil
+	if err = local.L.LoadItemStockItemOrder(tx, true, &local); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ItemStockItemOrder == nil {
 		t.Error("struct should have been eager loaded")
 	}
 }
@@ -969,66 +969,6 @@ func testStockOneToOneSetOpStockPubUsingStockPub(t *testing.T) {
 		}
 	}
 }
-func testStockOneToOneSetOpStockItemOrderUsingItemStockItemOrder(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Stock
-	var b, c StockItemOrder
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, stockDBTypes, false, strmangle.SetComplement(stockPrimaryKeyColumns, stockColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stockItemOrderDBTypes, false, strmangle.SetComplement(stockItemOrderPrimaryKeyColumns, stockItemOrderColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stockItemOrderDBTypes, false, strmangle.SetComplement(stockItemOrderPrimaryKeyColumns, stockItemOrderColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StockItemOrder{&b, &c} {
-		err = a.SetItemStockItemOrder(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.ItemStockItemOrder != x {
-			t.Error("relationship struct not set to correct value")
-		}
-		if x.R.Item != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-
-		if a.StockID != x.ItemID {
-			t.Error("foreign key was wrong value", a.StockID)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(x.ItemID))
-		reflect.Indirect(reflect.ValueOf(&x.ItemID)).Set(zero)
-
-		if err = x.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.StockID != x.ItemID {
-			t.Error("foreign key was wrong value", a.StockID, x.ItemID)
-		}
-
-		if err = x.Delete(tx); err != nil {
-			t.Fatal("failed to delete x", err)
-		}
-	}
-}
 func testStockOneToOneSetOpStockcollectionStockUsingStockcollectionStock(t *testing.T) {
 	var err error
 
@@ -1082,6 +1022,66 @@ func testStockOneToOneSetOpStockcollectionStockUsingStockcollectionStock(t *test
 
 		if a.StockID != x.StockID {
 			t.Error("foreign key was wrong value", a.StockID, x.StockID)
+		}
+
+		if err = x.Delete(tx); err != nil {
+			t.Fatal("failed to delete x", err)
+		}
+	}
+}
+func testStockOneToOneSetOpStockItemOrderUsingItemStockItemOrder(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Stock
+	var b, c StockItemOrder
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, stockDBTypes, false, strmangle.SetComplement(stockPrimaryKeyColumns, stockColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, stockItemOrderDBTypes, false, strmangle.SetComplement(stockItemOrderPrimaryKeyColumns, stockItemOrderColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, stockItemOrderDBTypes, false, strmangle.SetComplement(stockItemOrderPrimaryKeyColumns, stockItemOrderColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, x := range []*StockItemOrder{&b, &c} {
+		err = a.SetItemStockItemOrder(tx, i != 0, x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.R.ItemStockItemOrder != x {
+			t.Error("relationship struct not set to correct value")
+		}
+		if x.R.Item != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+
+		if a.StockID != x.ItemID {
+			t.Error("foreign key was wrong value", a.StockID)
+		}
+
+		zero := reflect.Zero(reflect.TypeOf(x.ItemID))
+		reflect.Indirect(reflect.ValueOf(&x.ItemID)).Set(zero)
+
+		if err = x.Reload(tx); err != nil {
+			t.Fatal("failed to reload", err)
+		}
+
+		if a.StockID != x.ItemID {
+			t.Error("foreign key was wrong value", a.StockID, x.ItemID)
 		}
 
 		if err = x.Delete(tx); err != nil {

@@ -19,10 +19,16 @@ import (
 
 // StockOrder is an object representing the database table.
 type StockOrder struct {
-	StockOrderID int       `boil:"stock_order_id" json:"stock_order_id" toml:"stock_order_id" yaml:"stock_order_id"`
-	UserID       int       `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	CreatedAt    null.Time `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
-	UpdatedAt    null.Time `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
+	StockOrderID    int         `boil:"stock_order_id" json:"stock_order_id" toml:"stock_order_id" yaml:"stock_order_id"`
+	UserID          int         `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	CreatedAt       null.Time   `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
+	UpdatedAt       null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
+	Courier         string      `boil:"courier" json:"courier,omitempty" toml:"courier" yaml:"courier,omitempty"`
+	CourierAccount  null.Int    `boil:"courier_account" json:"courier_account,omitempty" toml:"courier_account" yaml:"courier_account,omitempty"`
+	Comments        null.String `boil:"comments" json:"comments,omitempty" toml:"comments" yaml:"comments,omitempty"`
+	Payment         string      `boil:"payment" json:"payment,omitempty" toml:"payment" yaml:"payment,omitempty"`
+	PurchaseOrderID null.Int    `boil:"purchase_order_id" json:"purchase_order_id,omitempty" toml:"purchase_order_id" yaml:"purchase_order_id,omitempty"`
+	Status          null.String `boil:"status" json:"status,omitempty" toml:"status" yaml:"status,omitempty"`
 
 	R *stockOrderR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L stockOrderL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -38,8 +44,8 @@ type stockOrderR struct {
 type stockOrderL struct{}
 
 var (
-	stockOrderColumns               = []string{"stock_order_id", "user_id", "created_at", "updated_at"}
-	stockOrderColumnsWithoutDefault = []string{"user_id"}
+	stockOrderColumns               = []string{"stock_order_id", "user_id", "created_at", "updated_at", "courier", "courier_account", "comments", "payment", "purchase_order_id", "status"}
+	stockOrderColumnsWithoutDefault = []string{"user_id", "courier", "courier_account", "comments", "payment", "purchase_order_id", "status"}
 	stockOrderColumnsWithDefault    = []string{"stock_order_id", "created_at", "updated_at"}
 	stockOrderPrimaryKeyColumns     = []string{"stock_order_id"}
 )

@@ -746,7 +746,7 @@ func testStockOrdersSelect(t *testing.T) {
 }
 
 var (
-	stockOrderDBTypes = map[string]string{"CreatedAt": "timestamp with time zone", "StockOrderID": "integer", "UpdatedAt": "timestamp with time zone", "UserID": "integer"}
+	stockOrderDBTypes = map[string]string{"Comments": "text", "Courier": "USER-DEFINED", "CourierAccount": "integer", "CreatedAt": "timestamp with time zone", "Payment": "USER-DEFINED", "PurchaseOrderID": "integer", "Status": "character varying", "StockOrderID": "integer", "UpdatedAt": "timestamp with time zone", "UserID": "integer"}
 	_                 = bytes.MinRead
 )
 

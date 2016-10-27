@@ -38,8 +38,8 @@ type stockR struct {
 	Type                     *Cvterm
 	Dbxref                   *Dbxref
 	StockPub                 *StockPub
-	ItemStockItemOrder       *StockItemOrder
 	StockcollectionStock     *StockcollectionStock
+	ItemStockItemOrder       *StockItemOrder
 	StockCvterm              *StockCvterm
 	ObjectStockRelationship  *StockRelationship
 	SubjectStockRelationship *StockRelationship
@@ -410,25 +410,6 @@ func (o *Stock) StockPub(exec boil.Executor, mods ...qm.QueryMod) stockPubQuery 
 	return query
 }
 
-// ItemStockItemOrderG pointed to by the foreign key.
-func (o *Stock) ItemStockItemOrderG(mods ...qm.QueryMod) stockItemOrderQuery {
-	return o.ItemStockItemOrder(boil.GetDB(), mods...)
-}
-
-// ItemStockItemOrder pointed to by the foreign key.
-func (o *Stock) ItemStockItemOrder(exec boil.Executor, mods ...qm.QueryMod) stockItemOrderQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("item_id=$1", o.StockID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := StockItemOrders(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"stock_item_order\"")
-
-	return query
-}
-
 // StockcollectionStockG pointed to by the foreign key.
 func (o *Stock) StockcollectionStockG(mods ...qm.QueryMod) stockcollectionStockQuery {
 	return o.StockcollectionStock(boil.GetDB(), mods...)
@@ -444,6 +425,25 @@ func (o *Stock) StockcollectionStock(exec boil.Executor, mods ...qm.QueryMod) st
 
 	query := StockcollectionStocks(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"stockcollection_stock\"")
+
+	return query
+}
+
+// ItemStockItemOrderG pointed to by the foreign key.
+func (o *Stock) ItemStockItemOrderG(mods ...qm.QueryMod) stockItemOrderQuery {
+	return o.ItemStockItemOrder(boil.GetDB(), mods...)
+}
+
+// ItemStockItemOrder pointed to by the foreign key.
+func (o *Stock) ItemStockItemOrder(exec boil.Executor, mods ...qm.QueryMod) stockItemOrderQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("item_id=$1", o.StockID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := StockItemOrders(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"stock_item_order\"")
 
 	return query
 }
@@ -842,76 +842,6 @@ func (stockL) LoadStockPub(e boil.Executor, singular bool, maybeStock interface{
 	return nil
 }
 
-// LoadItemStockItemOrder allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (stockL) LoadItemStockItemOrder(e boil.Executor, singular bool, maybeStock interface{}) error {
-	var slice []*Stock
-	var object *Stock
-
-	count := 1
-	if singular {
-		object = maybeStock.(*Stock)
-	} else {
-		slice = *maybeStock.(*StockSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		object.R = &stockR{}
-		args[0] = object.StockID
-	} else {
-		for i, obj := range slice {
-			obj.R = &stockR{}
-			args[i] = obj.StockID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"stock_item_order\" where \"item_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load StockItemOrder")
-	}
-	defer results.Close()
-
-	var resultSlice []*StockItemOrder
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice StockItemOrder")
-	}
-
-	if len(stockAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if singular && len(resultSlice) != 0 {
-		object.R.ItemStockItemOrder = resultSlice[0]
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.StockID == foreign.ItemID {
-				local.R.ItemStockItemOrder = foreign
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // LoadStockcollectionStock allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (stockL) LoadStockcollectionStock(e boil.Executor, singular bool, maybeStock interface{}) error {
@@ -974,6 +904,76 @@ func (stockL) LoadStockcollectionStock(e boil.Executor, singular bool, maybeStoc
 		for _, local := range slice {
 			if local.StockID == foreign.StockID {
 				local.R.StockcollectionStock = foreign
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadItemStockItemOrder allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (stockL) LoadItemStockItemOrder(e boil.Executor, singular bool, maybeStock interface{}) error {
+	var slice []*Stock
+	var object *Stock
+
+	count := 1
+	if singular {
+		object = maybeStock.(*Stock)
+	} else {
+		slice = *maybeStock.(*StockSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		object.R = &stockR{}
+		args[0] = object.StockID
+	} else {
+		for i, obj := range slice {
+			obj.R = &stockR{}
+			args[i] = obj.StockID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"stock_item_order\" where \"item_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load StockItemOrder")
+	}
+	defer results.Close()
+
+	var resultSlice []*StockItemOrder
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice StockItemOrder")
+	}
+
+	if len(stockAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if singular && len(resultSlice) != 0 {
+		object.R.ItemStockItemOrder = resultSlice[0]
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.StockID == foreign.ItemID {
+				local.R.ItemStockItemOrder = foreign
 				break
 			}
 		}
@@ -1652,57 +1652,6 @@ func (o *Stock) SetStockPub(exec boil.Executor, insert bool, related *StockPub) 
 	return nil
 }
 
-// SetItemStockItemOrder of the stock to the related item.
-// Sets o.R.ItemStockItemOrder to related.
-// Adds o to related.R.Item.
-func (o *Stock) SetItemStockItemOrder(exec boil.Executor, insert bool, related *StockItemOrder) error {
-	var err error
-
-	if insert {
-		related.ItemID = o.StockID
-
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	} else {
-		updateQuery := fmt.Sprintf(
-			"UPDATE \"stock_item_order\" SET %s WHERE %s",
-			strmangle.SetParamNames("\"", "\"", 1, []string{"item_id"}),
-			strmangle.WhereClause("\"", "\"", 2, stockItemOrderPrimaryKeyColumns),
-		)
-		values := []interface{}{o.StockID, related.StockItemOrderID}
-
-		if boil.DebugMode {
-			fmt.Fprintln(boil.DebugWriter, updateQuery)
-			fmt.Fprintln(boil.DebugWriter, values)
-		}
-
-		if _, err = exec.Exec(updateQuery, values...); err != nil {
-			return errors.Wrap(err, "failed to update foreign table")
-		}
-
-		related.ItemID = o.StockID
-
-	}
-
-	if o.R == nil {
-		o.R = &stockR{
-			ItemStockItemOrder: related,
-		}
-	} else {
-		o.R.ItemStockItemOrder = related
-	}
-
-	if related.R == nil {
-		related.R = &stockItemOrderR{
-			Item: o,
-		}
-	} else {
-		related.R.Item = o
-	}
-	return nil
-}
-
 // SetStockcollectionStock of the stock to the related item.
 // Sets o.R.StockcollectionStock to related.
 // Adds o to related.R.Stock.
@@ -1750,6 +1699,57 @@ func (o *Stock) SetStockcollectionStock(exec boil.Executor, insert bool, related
 		}
 	} else {
 		related.R.Stock = o
+	}
+	return nil
+}
+
+// SetItemStockItemOrder of the stock to the related item.
+// Sets o.R.ItemStockItemOrder to related.
+// Adds o to related.R.Item.
+func (o *Stock) SetItemStockItemOrder(exec boil.Executor, insert bool, related *StockItemOrder) error {
+	var err error
+
+	if insert {
+		related.ItemID = o.StockID
+
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	} else {
+		updateQuery := fmt.Sprintf(
+			"UPDATE \"stock_item_order\" SET %s WHERE %s",
+			strmangle.SetParamNames("\"", "\"", 1, []string{"item_id"}),
+			strmangle.WhereClause("\"", "\"", 2, stockItemOrderPrimaryKeyColumns),
+		)
+		values := []interface{}{o.StockID, related.StockItemOrderID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, updateQuery)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		if _, err = exec.Exec(updateQuery, values...); err != nil {
+			return errors.Wrap(err, "failed to update foreign table")
+		}
+
+		related.ItemID = o.StockID
+
+	}
+
+	if o.R == nil {
+		o.R = &stockR{
+			ItemStockItemOrder: related,
+		}
+	} else {
+		o.R.ItemStockItemOrder = related
+	}
+
+	if related.R == nil {
+		related.R = &stockItemOrderR{
+			Item: o,
+		}
+	} else {
+		related.R.Item = o
 	}
 	return nil
 }
