@@ -13,42 +13,42 @@ type Permission struct {
 	Description string `json:"description"`
 }
 
-func (p Permission) GetID() string {
+func (p *Permission) GetID() string {
 	return p.ID
 }
 
-func (p Permission) SetID(id string) error {
+func (p *Permission) SetID(id string) error {
 	p.ID = id
 	return nil
 }
 
 type Role struct {
-	ID            string       `json:"-"`
-	Role          string       `json:"role"`
-	Description   string       `json:"description"`
-	Permissions   []Permission `json:"-"`
-	Users         []User       `json:"-"`
-	UserIDs       []string     `json:"-"`
-	PermissionIDs []string     `json:"-"`
+	ID            string        `json:"-"`
+	Role          string        `json:"role"`
+	Description   string        `json:"description"`
+	Permissions   []*Permission `json:"-"`
+	Users         []*User       `json:"-"`
+	UserIDs       []string      `json:"-"`
+	PermissionIDs []string      `json:"-"`
 }
 
-func (r Role) GetID() string {
+func (r *Role) GetID() string {
 	return r.ID
 }
 
-func (r Role) SetID(id string) error {
+func (r *Role) SetID(id string) error {
 	r.ID = id
 	return nil
 }
 
-func (r Role) GetReferences() []jsonapi.Reference {
+func (r *Role) GetReferences() []jsonapi.Reference {
 	return []jsonapi.Reference{
 		jsonapi.Reference{Type: "permissions", Name: "permissions"},
 		jsonapi.Reference{Type: "users", Name: "users"},
 	}
 }
 
-func (r Role) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
+func (r *Role) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(r.Users) > 0 {
 		for _, u := range r.Users {
 			result = append(result, u)
@@ -63,7 +63,7 @@ func (r Role) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	return result
 }
 
-func (r Role) SetToManyReferenceIDs(name string, IDs []string) error {
+func (r *Role) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "permissions" {
 		r.PermissionIDs = IDs
 		return nil
@@ -75,7 +75,7 @@ func (r Role) SetToManyReferenceIDs(name string, IDs []string) error {
 	return fmt.Errorf("%s No such has many relationships", name)
 }
 
-func (r Role) GetRelatedLinksInfo() []jsh.RelationShipLink {
+func (r *Role) GetRelatedLinksInfo() []jsh.RelationShipLink {
 	return []jsh.RelationShipLink{
 		jsh.RelationShipLink{Name: "permissions"},
 		jsh.RelationShipLink{Name: "users"},
@@ -93,26 +93,26 @@ type User struct {
 	Zipcode       string   `json:"zipcode"`
 	Country       string   `json:"country"`
 	Phone         string   `json:"phone"`
-	Roles         []Role   `json:"-"`
+	Roles         []*Role  `json:"-"`
 	RoleIDs       []string `json:"-"`
 }
 
-func (u User) GetID() string {
+func (u *User) GetID() string {
 	return u.ID
 }
 
-func (u User) SetID(id string) error {
+func (u *User) SetID(id string) error {
 	u.ID = id
 	return nil
 }
 
-func (u User) GetReferences() []jsonapi.Reference {
+func (u *User) GetReferences() []jsonapi.Reference {
 	return []jsonapi.Reference{
 		jsonapi.Reference{Type: "roles", Name: "roles"},
 	}
 }
 
-func (u User) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
+func (u *User) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(u.Roles) > 0 {
 		for _, r := range u.Roles {
 			result = append(result, r)
@@ -121,7 +121,7 @@ func (u User) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	return result
 }
 
-func (u User) SetToManyReferenceIDs(name string, IDs []string) error {
+func (u *User) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "roles" {
 		u.RoleIDs = IDs
 		return nil
@@ -129,7 +129,7 @@ func (u User) SetToManyReferenceIDs(name string, IDs []string) error {
 	return fmt.Errorf("%s No such has many relationships", name)
 }
 
-func (u User) GetRelatedLinksInfo() []jsh.RelationShipLink {
+func (u *User) GetRelatedLinksInfo() []jsh.RelationShipLink {
 	return []jsh.RelationShipLink{
 		jsh.RelationShipLink{Name: "roles"},
 	}

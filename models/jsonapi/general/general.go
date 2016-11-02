@@ -6,11 +6,11 @@ type Dbxref struct {
 	Accession string `json:"accession"`
 }
 
-func (dbxref Dbxref) GetID() string {
+func (dbxref *Dbxref) GetID() string {
 	return dbxref.ID
 }
 
-func (dbxref Dbxref) SetID(id string) error {
+func (dbxref *Dbxref) SetID(id string) error {
 	dbxref.ID = id
 	return nil
 }
