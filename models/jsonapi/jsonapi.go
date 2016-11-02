@@ -5,6 +5,7 @@ package jsonapi
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/manyminds/api2go/jsonapi"
@@ -33,11 +34,62 @@ func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*js
 	if err != nil {
 		return jst, err
 	}
-	jst.Links = &jsonapi.Links{Self: generateSelfLink(jst, ep)}
+	if len(jst.Data.DataArray) > 0 { //array resource objects
+		// picking first element both from the generated and given typed structures
+		elem := jst.Data.DataArray[0]
+		value := reflect.ValueOf(data).Index(0)
+		// link for the array resource itself
+		jst.Links = &jsonapi.Links{Self: generateMultiResourceLink(&elem, ep)}
+		// link for individual resource
+		slink := &jsonapi.Links{Self: generateSingleResourceLink(&elem, ep)}
+		// Add it to every member
+		for i, _ := range jst.Data.DataArray {
+			jst.Data.DataArray[i].Links = slink
+		}
+		// Add relationships to every member
+		relationships := generateRelationshipLinks(value, &elem, ep)
+		if len(relationships) > 0 {
+			for i, _ := range jst.Data.DataArray {
+				jst.Data.DataArray[i].Relationships = relationships
+			}
+		}
+	} else {
+		jst.Links = &jsonapi.Links{Self: generateSingleResourceLink(jst.Data.DataObject, ep)}
+		relationships := generateRelationshipLinks(data, jst.Data.DataObject, ep)
+		if len(relationships) > 0 {
+			jst.Data.DataObject.Relationships = relationships
+		}
+	}
+	return jst, nil
+}
 
-	// create relationship links
+func generateBaseLink(ep jsonapi.ServerInformation) string {
+	return fmt.Sprintf(
+		"%s/%s",
+		strings.Trim(ep.GetBaseURL(), "/"),
+		strings.Trim(ep.GetPrefix(), "/"),
+	)
+}
+
+func generateSingleResourceLink(jdata *jsonapi.Data, ep jsonapi.ServerInformation) string {
+	return fmt.Sprintf(
+		"%s/%s/%s",
+		generateBaseLink(ep),
+		jdata.Type,
+		jdata.ID,
+	)
+}
+
+func generateMultiResourceLink(jdata *jsonapi.Data, ep jsonapi.ServerInformation) string {
+	return fmt.Sprintf(
+		"%s/%s",
+		generateBaseLink(ep),
+		jdata.Type,
+	)
+}
+
+func generateRelationshipLinks(data interface{}, jdata *jsonapi.Data, ep jsonapi.ServerInformation) (relationships map[string]jsonapi.Relationship) {
 	baselink := generateBaseLink(ep)
-	relationships := make(map[string]jsonapi.Relationship)
 	self, ok := data.(MarshalSelfRelations)
 	if ok {
 		for _, rel := range self.GetSelfLinksInfo() {
@@ -47,8 +99,8 @@ func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*js
 			} else {
 				links.Self = fmt.Sprintf("%s/%s/%s/relationships/%s",
 					baselink,
-					jst.Data.DataObject.Type,
-					jst.Data.DataObject.ID,
+					jdata.Type,
+					jdata.ID,
 					rel.Name,
 				)
 			}
@@ -64,8 +116,8 @@ func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*js
 			} else {
 				rlink = fmt.Sprintf("%s/%s/%s/%s",
 					baselink,
-					jst.Data.DataObject.Type,
-					jst.Data.DataObject.ID, rel.Name,
+					jdata.Type,
+					jdata.ID, rel.Name,
 				)
 			}
 			if _, ok := relationships[rel.Name]; ok {
@@ -75,25 +127,5 @@ func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*js
 			}
 		}
 	}
-	if len(relationships) > 0 {
-		jst.Data.DataObject.Relationships = relationships
-	}
-	return jst, nil
-}
-
-func generateBaseLink(ep jsonapi.ServerInformation) string {
-	return fmt.Sprintf(
-		"%s/%s",
-		strings.Trim(ep.GetBaseURL(), "/"),
-		strings.Trim(ep.GetPrefix(), "/"),
-	)
-}
-
-func generateSelfLink(jst *jsonapi.Document, ep jsonapi.ServerInformation) string {
-	return fmt.Sprintf(
-		"%s/%s/%s",
-		generateBaseLink(ep),
-		jst.Data.DataObject.Type,
-		jst.Data.DataObject.ID,
-	)
+	return relationships
 }
