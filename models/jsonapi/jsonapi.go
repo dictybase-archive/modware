@@ -1,3 +1,6 @@
+// Package jsonapi provides additional interfaces and wrapper functions for original
+// jsonapi package("github.com/manyminds/api2go/jsonapi") to create and customize
+// the self and related relationship links
 package jsonapi
 
 import (
@@ -7,15 +10,20 @@ import (
 	"github.com/manyminds/api2go/jsonapi"
 )
 
+// Container type for having information about relationship links
 type RelationShipLink struct {
-	Name           string
+	Name string
+	// To override the default links, it will be appended to
+	// the base url.
 	SuffixFragment string
 }
 
+// Interface to implement for creating self relationship links
 type MarshalSelfRelations interface {
 	GetSelfLinksInfo() []RelationShipLink
 }
 
+// Interface to implement for creating related relationship links
 type MarshalRelatedRelations interface {
 	GetRelatedLinksInfo() []RelationShipLink
 }
