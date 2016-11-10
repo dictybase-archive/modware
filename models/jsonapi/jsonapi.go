@@ -88,7 +88,8 @@ func generateMultiResourceLink(jdata *jsonapi.Data, ep jsonapi.ServerInformation
 	)
 }
 
-func generateRelationshipLinks(data interface{}, jdata *jsonapi.Data, ep jsonapi.ServerInformation) (relationships map[string]jsonapi.Relationship) {
+func generateRelationshipLinks(data interface{}, jdata *jsonapi.Data, ep jsonapi.ServerInformation) map[string]jsonapi.Relationship {
+	relationships := make(map[string]jsonapi.Relationship)
 	baselink := generateBaseLink(ep)
 	self, ok := data.(MarshalSelfRelations)
 	if ok {
