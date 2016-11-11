@@ -93,3 +93,100 @@ func TestRelationshipLink(t *testing.T) {
 		t.Fatal("expected and generated jsonapi structure did not match")
 	}
 }
+
+func TestMultiRelationshipsLink(t *testing.T) {
+	srvinfo := GetApiServerInfo()
+	bslink := generateBaseLink(srvinfo)
+	r := &Role{
+		ID:          "44",
+		Role:        "Administrator",
+		Description: "The God",
+	}
+	pstruct, err := MarshalToStructWrapper(r, srvinfo)
+	if err != nil {
+		t.Errorf("error in marshaling to structure %s\n", err)
+	}
+	prel := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "roles", "44", "permissions"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "roles", "44", "permissions"),
+		},
+	}
+	urel := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "roles", "44", "users"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "roles", "44", "consumers"),
+		},
+	}
+	exstruct := &jsapi.Document{
+		Links: &jsapi.Links{Self: fmt.Sprintf("%s/%s/%s", bslink, "roles", "44")},
+		Data: &jsapi.DataContainer{
+			DataObject: &jsapi.Data{
+				Type:          "roles",
+				ID:            "44",
+				Attributes:    []byte(`{"role":"Administrator","description":"The God"}`),
+				Relationships: map[string]jsapi.Relationship{"permissions": prel, "users": urel},
+			},
+		},
+	}
+	if !reflect.DeepEqual(pstruct, exstruct) {
+		t.Fatal("expected and generated jsonapi structure did not match")
+	}
+}
+
+func TestCollectionRelationshipsLink(t *testing.T) {
+	srvinfo := GetApiServerInfo()
+	bslink := generateBaseLink(srvinfo)
+	users := []*User{
+		&User{
+			ID:    "12",
+			Name:  "Caboose",
+			Email: "caboose@caboose.com",
+		},
+		&User{
+			ID:    "21",
+			Name:  "Damon",
+			Email: "damon@damon.com",
+		},
+	}
+	pstruct, err := MarshalToStructWrapper(users, srvinfo)
+	if err != nil {
+		t.Errorf("error in marshaling to structure %s\n", err)
+	}
+	rel := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "users", "12", "roles"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "users", "12", "roles"),
+		},
+	}
+	rel2 := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "users", "21", "roles"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "users", "21", "roles"),
+		},
+	}
+	exstruct := &jsapi.Document{
+		Links: &jsapi.Links{Self: fmt.Sprintf("%s/%s", bslink, "users")},
+		Data: &jsapi.DataContainer{
+			DataArray: []jsapi.Data{
+				jsapi.Data{
+					Type:          "users",
+					ID:            "12",
+					Attributes:    []byte(`{"name":"Caboose","email":"caboose@caboose.com"}`),
+					Relationships: map[string]jsapi.Relationship{"roles": rel},
+					Links:         &jsapi.Links{Self: fmt.Sprintf("%s/%s/%s", bslink, "users", "12")},
+				},
+				jsapi.Data{
+					Type:          "users",
+					ID:            "21",
+					Attributes:    []byte(`{"name":"Damon","email":"damon@damon.com"}`),
+					Relationships: map[string]jsapi.Relationship{"roles": rel2},
+					Links:         &jsapi.Links{Self: fmt.Sprintf("%s/%s/%s", bslink, "users", "21")},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(pstruct, exstruct) {
+		t.Fatal("expected and generated jsonapi structure did not match")
+	}
+}
