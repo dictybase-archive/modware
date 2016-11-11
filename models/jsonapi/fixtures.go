@@ -1,5 +1,7 @@
 package jsonapi
 
+import "fmt"
+
 type Permission struct {
 	ID          string `json:"-"`
 	Permission  string `json:"permission"`
@@ -14,12 +16,29 @@ type Role struct {
 	ID          string        `json:"-"`
 	Role        string        `json:"role"`
 	Description string        `json:"description"`
-	Permissions []*Permission `json"-"`
+	Permissions []*Permission `json:"-"`
 	Users       []*User       `json:"-"`
 }
 
 func (r *Role) GetID() string {
 	return r.ID
+}
+
+func (r *Role) GetSelfLinksInfo() []RelationShipLink {
+	return []RelationShipLink{
+		RelationShipLink{Name: "users"},
+		RelationShipLink{Name: "permissions"},
+	}
+}
+
+func (r *Role) GetRelatedLinksInfo() []RelationShipLink {
+	return []RelationShipLink{
+		RelationShipLink{
+			Name:           "users",
+			SuffixFragment: fmt.Sprintf("%s/%s/%s", "roles", r.GetID(), "consumers"),
+		},
+		RelationShipLink{Name: "permissions"},
+	}
 }
 
 type User struct {

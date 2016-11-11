@@ -37,14 +37,15 @@ func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*js
 	if len(jst.Data.DataArray) > 0 { //array resource objects
 		// picking first element both from the generated and given typed structures
 		elem := jst.Data.DataArray[0]
-		value := reflect.ValueOf(data).Index(0)
+		value := reflect.ValueOf(data).Index(0).Interface()
 		// link for the array resource itself
 		jst.Links = &jsonapi.Links{Self: generateMultiResourceLink(&elem, ep)}
 		for i, d := range jst.Data.DataArray {
 			// link for individual resource
 			jst.Data.DataArray[i].Links = &jsonapi.Links{Self: generateSingleResourceLink(&d, ep)}
 			// Add relationships to every member
-			jst.Data.DataArray[i].Relationships = generateRelationshipLinks(value, &d, ep)
+			r := generateRelationshipLinks(value, &d, ep)
+			jst.Data.DataArray[i].Relationships = r
 		}
 	} else {
 		jst.Links = &jsonapi.Links{Self: generateSingleResourceLink(jst.Data.DataObject, ep)}
