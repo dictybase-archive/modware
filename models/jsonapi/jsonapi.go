@@ -5,6 +5,7 @@ package jsonapi
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 
@@ -27,6 +28,50 @@ type MarshalSelfRelations interface {
 // Interface to implement for creating related relationship links
 type MarshalRelatedRelations interface {
 	GetRelatedLinksInfo() []RelationShipLink
+}
+
+// type to configure different pagination properties
+type PaginationOpt struct {
+	// Total no of records that will be paginated
+	Records int
+	// No of entries to have per page
+	Entries int
+	// Current page no
+	Current int
+}
+
+func generatePaginatedResourceLink(baseurl string, pagenum, pagesize int) string {
+	return fmt.Sprintf(
+		"%s?page[number]=%d&page[size]=%d",
+		baseurl,
+		pagenum,
+		pagesize,
+	)
+}
+
+func MarshalWithPagination(data interface{}, ep jsonapi.ServerInformation, opt PaginationOpt) (*jsonapi.Document, error) {
+	var jst *jsonapi.Document
+	if reflect.TypeOf(data).Kind() != reflect.Slice {
+		return jst, fmt.Errorf("%s\n", "Only slice type is allowed for pagination")
+	}
+	jst, err := MarshalToStructWrapper(data, ep)
+	if err != nil {
+		return jst, err
+	}
+	baseLink := jst.Links.Self
+	pageLink := &jsonapi.Links{}
+	pageLink.Self = generatePaginatedResourceLink(baseLink, opt.Current, opt.Entries)
+	pageLink.First = generatePaginatedResourceLink(baseLink, 1, opt.Entries)
+	if opt.Current != 1 {
+		pageLink.Previous = generatePaginatedResourceLink(baseLink, opt.Current-1, opt.Entries)
+	}
+	lastPage := int(math.Floor(float64(opt.Records) / float64(opt.Entries)))
+	pageLink.Last = generatePaginatedResourceLink(baseLink, lastPage, opt.Entries)
+	if opt.Current != lastPage {
+		pageLink.Next = generatePaginatedResourceLink(baseLink, opt.Current+1, opt.Entries)
+	}
+	jst.Links = pageLink
+	return jst, nil
 }
 
 func MarshalToStructWrapper(data interface{}, ep jsonapi.ServerInformation) (*jsonapi.Document, error) {
