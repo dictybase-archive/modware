@@ -190,3 +190,82 @@ func TestCollectionRelationshipsLink(t *testing.T) {
 		t.Fatal("expected and generated jsonapi structure did not match")
 	}
 }
+
+func TestPaginationLinks(t *testing.T) {
+	srvinfo := GetApiServerInfo()
+	bslink := generateBaseLink(srvinfo)
+	users := []*User{
+		&User{
+			ID:    "12",
+			Name:  "Caboose",
+			Email: "caboose@caboose.com",
+		},
+		&User{
+			ID:    "21",
+			Name:  "Damon",
+			Email: "damon@damon.com",
+		},
+	}
+
+	pageOpt := PaginationOpt{
+		Records: 100,
+		Entries: 10,
+		Current: 5,
+	}
+	pstruct, err := MarshalWithPagination(users, srvinfo, pageOpt)
+	if err != nil {
+		t.Errorf("error in marshaling to structure %s\n", err)
+	}
+	rel := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "users", "12", "roles"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "users", "12", "roles"),
+		},
+	}
+	rel2 := jsapi.Relationship{
+		Links: &jsapi.Links{
+			Self:    fmt.Sprintf("%s/%s/%s/relationships/%s", bslink, "users", "21", "roles"),
+			Related: fmt.Sprintf("%s/%s/%s/%s", bslink, "users", "21", "roles"),
+		},
+	}
+	resourceLink := fmt.Sprintf("%s/%s", bslink, "users")
+	pageLinks := &jsapi.Links{
+		Self:     fmt.Sprintf("%s?page[number]=%d&page[size]=%d", resourceLink, 5, 10),
+		First:    fmt.Sprintf("%s?page[number]=%d&page[size]=%d", resourceLink, 1, 10),
+		Previous: fmt.Sprintf("%s?page[number]=%d&page[size]=%d", resourceLink, 4, 10),
+		Last:     fmt.Sprintf("%s?page[number]=%d&page[size]=%d", resourceLink, 10, 10),
+		Next:     fmt.Sprintf("%s?page[number]=%d&page[size]=%d", resourceLink, 6, 10),
+	}
+	exstruct := &jsapi.Document{
+		Links: pageLinks,
+		Data: &jsapi.DataContainer{
+			DataArray: []jsapi.Data{
+				jsapi.Data{
+					Type:          "users",
+					ID:            "12",
+					Attributes:    []byte(`{"name":"Caboose","email":"caboose@caboose.com"}`),
+					Relationships: map[string]jsapi.Relationship{"roles": rel},
+					Links:         &jsapi.Links{Self: fmt.Sprintf("%s/%s/%s", bslink, "users", "12")},
+				},
+				jsapi.Data{
+					Type:          "users",
+					ID:            "21",
+					Attributes:    []byte(`{"name":"Damon","email":"damon@damon.com"}`),
+					Relationships: map[string]jsapi.Relationship{"roles": rel2},
+					Links:         &jsapi.Links{Self: fmt.Sprintf("%s/%s/%s", bslink, "users", "21")},
+				},
+			},
+		},
+		Meta: map[string]interface{}{
+			"pagination": map[string]int{
+				"records": 100,
+				"total":   10,
+				"size":    10,
+				"number":  5,
+			},
+		},
+	}
+	if !reflect.DeepEqual(pstruct, exstruct) {
+		t.Fatal("expected and generated jsonapi structure did not match")
+	}
+}

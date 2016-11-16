@@ -71,6 +71,14 @@ func MarshalWithPagination(data interface{}, ep jsonapi.ServerInformation, opt P
 		pageLink.Next = generatePaginatedResourceLink(baseLink, opt.Current+1, opt.Entries)
 	}
 	jst.Links = pageLink
+	jst.Meta = map[string]interface{}{
+		"pagination": map[string]int{
+			"records": opt.Records,
+			"total":   lastPage,
+			"size":    opt.Entries,
+			"number":  opt.Current,
+		},
+	}
 	return jst, nil
 }
 
