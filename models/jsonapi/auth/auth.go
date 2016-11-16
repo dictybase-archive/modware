@@ -3,7 +3,7 @@ package auth
 import (
 	"fmt"
 
-	jsh "github.com/dictybase/modware/models/jsonapi"
+	jsapi "github.com/dictybase/modware/models/jsonapi"
 	"github.com/manyminds/api2go/jsonapi"
 )
 
@@ -41,13 +41,6 @@ func (r *Role) SetID(id string) error {
 	return nil
 }
 
-func (r *Role) GetReferences() []jsonapi.Reference {
-	return []jsonapi.Reference{
-		jsonapi.Reference{Type: "permissions", Name: "permissions"},
-		jsonapi.Reference{Type: "users", Name: "users"},
-	}
-}
-
 func (r *Role) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(r.Users) > 0 {
 		for _, u := range r.Users {
@@ -63,6 +56,20 @@ func (r *Role) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	return result
 }
 
+func (r *Role) GetSelfLinksInfo() []jsapi.RelationShipLink {
+	return []jsapi.RelationShipLink{
+		jsapi.RelationShipLink{Name: "users"},
+		jsapi.RelationShipLink{Name: "permissions"},
+	}
+}
+
+func (r *Role) GetRelatedLinksInfo() []jsapi.RelationShipLink {
+	return []jsapi.RelationShipLink{
+		jsapi.RelationShipLink{Name: "users"},
+		jsapi.RelationShipLink{Name: "permissions"},
+	}
+}
+
 func (r *Role) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "permissions" {
 		r.PermissionIDs = IDs
@@ -73,13 +80,6 @@ func (r *Role) SetToManyReferenceIDs(name string, IDs []string) error {
 		return nil
 	}
 	return fmt.Errorf("%s No such has many relationships", name)
-}
-
-func (r *Role) GetRelatedLinksInfo() []jsh.RelationShipLink {
-	return []jsh.RelationShipLink{
-		jsh.RelationShipLink{Name: "permissions"},
-		jsh.RelationShipLink{Name: "users"},
-	}
 }
 
 type User struct {
@@ -106,12 +106,6 @@ func (u *User) SetID(id string) error {
 	return nil
 }
 
-func (u *User) GetReferences() []jsonapi.Reference {
-	return []jsonapi.Reference{
-		jsonapi.Reference{Type: "roles", Name: "roles"},
-	}
-}
-
 func (u *User) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(u.Roles) > 0 {
 		for _, r := range u.Roles {
@@ -129,8 +123,14 @@ func (u *User) SetToManyReferenceIDs(name string, IDs []string) error {
 	return fmt.Errorf("%s No such has many relationships", name)
 }
 
-func (u *User) GetRelatedLinksInfo() []jsh.RelationShipLink {
-	return []jsh.RelationShipLink{
-		jsh.RelationShipLink{Name: "roles"},
+func (u *User) GetiSelfLinksInfo() []jsapi.RelationShipLink {
+	return []jsapi.RelationShipLink{
+		jsapi.RelationShipLink{Name: "roles"},
+	}
+}
+
+func (u *User) GetRelatedLinksInfo() []jsapi.RelationShipLink {
+	return []jsapi.RelationShipLink{
+		jsapi.RelationShipLink{Name: "roles"},
 	}
 }
