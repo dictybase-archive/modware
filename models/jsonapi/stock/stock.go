@@ -183,3 +183,9 @@ func (prop *GenoProp) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 		},
 	}
 }
+
+type Stock struct {
+	ID          string `json:"-"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
