@@ -1,12 +1,13 @@
 package resources
 
 import "database/sql"
+import "net/http"
 
 type Resource interface {
 	GetDbh() *sql.DB
-	Get()
-	GetAll()
-	Create()
-	Update()
-	Delete()
+	Get(http.ResponseWriter, *http.Request)
+	GetAll(http.ResponseWriter, *http.Request)
+	Create(http.ResponseWriter, *http.Request)
+	Update(http.ResponseWriter, *http.Request)
+	Delete(http.ResponseWriter, *http.Request)
 }
