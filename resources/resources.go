@@ -1,10 +1,19 @@
 package resources
 
-import "database/sql"
-import "net/http"
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gocraft/dbr"
+)
+
+var (
+	ErrDatabaseQuery = errors.New("database query error")
+	ErrNotExist      = errors.New("resource not found")
+)
 
 type Resource interface {
-	GetDbh() *sql.DB
+	GetDbh() *dbr.Connection
 	Get(http.ResponseWriter, *http.Request)
 	GetAll(http.ResponseWriter, *http.Request)
 	Create(http.ResponseWriter, *http.Request)
