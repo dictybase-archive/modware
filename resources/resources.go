@@ -29,8 +29,6 @@ type Resource interface {
 	Update(http.ResponseWriter, *http.Request)
 	// Handles the http DELETE
 	Delete(http.ResponseWriter, *http.Request)
-	// Gets a jsonapi.ServerInformation implementing interface
-	GetApiServerInfo(*http.Request) jsonapi.ServerInformation
 }
 
 // Type that implements jsonapi.ServerInformation interface
@@ -45,4 +43,11 @@ func (server *ApiServer) GetBaseURL() string {
 
 func (server *ApiServer) GetPrefix() string {
 	return server.Prefix
+}
+
+func GetApiServerInfo(r *http.Request, prefix string) jsonapi.ServerInformation {
+	return &ApiServer{
+		BaseUrl: r.URL.Host,
+		Prefix:  prefix,
+	}
 }

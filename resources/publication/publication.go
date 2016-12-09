@@ -7,9 +7,7 @@ import (
 	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/dictyBase/modware/models/jsonapi/publication"
 	"github.com/dictyBase/modware/render"
-	"github.com/dictyBase/modware/resources"
 	"github.com/gocraft/dbr"
-	"github.com/manyminds/api2go/jsonapi"
 )
 
 type pubData struct {
@@ -111,7 +109,7 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 			pubj.Abstract = v
 		}
 	}
-	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, pub.GetApiServerInfo(r))
+	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resoures.GetApiServerInfo(r, pub.PathPrefix))
 	if err != nil {
 		render.StructMarshallingError(w, err)
 	}
@@ -133,14 +131,6 @@ func (pub *Publication) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pub *Publication) Delete(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (pub *Publication) GetApiServerInfo(r *http.Request) jsonapi.ServerInformation {
-	return &resources.ApiServer{
-		BaseUrl: r.URL.Host,
-		Prefix:  pub.PathPrefix,
-	}
 }
 
 type Author struct {
