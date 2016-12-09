@@ -46,10 +46,16 @@ func DatabaseError(w http.ResponseWriter, err error) {
 	}
 }
 
+func StructMarshallingError(w http.ResponseWriter, err error) {
+	jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrStructMarshal.Error())
+	if jerr != nil {
+		http.Error(w, jerr.Error(), http.StatusInternalServerError)
+	}
+}
+
 func JSONEncodingError(w http.ResponseWriter, err error) {
 	jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrJSONEncoding.Error())
 	if jerr != nil {
 		http.Error(w, jerr.Error(), http.StatusInternalServerError)
 	}
-
 }
