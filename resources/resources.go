@@ -12,6 +12,7 @@ var (
 	ErrDatabaseQuery = errors.New("database query error")
 	ErrNotExist      = errors.New("resource not found")
 	ErrJSONEncoding  = errors.New("json encoding error")
+	ErrStructMarshal = errors.New("structure marshalling error")
 )
 
 // Interface for every http resource to implement
