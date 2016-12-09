@@ -3,7 +3,7 @@ package publication
 import (
 	"fmt"
 
-	jsapi "github.com/dictybase/modware/models/jsonapi"
+	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/manyminds/api2go/jsonapi"
 )
 
@@ -69,8 +69,10 @@ type Publication struct {
 	Pages     string    `json:"pages"`
 	Month     string    `json:"month"`
 	Issn      string    `json:"issn"`
+	Issue     string    `json:"issue"`
 	Source    string    `json:"source"`
 	PubType   string    `json:"pub_type"`
+	Status    string    `json:"status"`
 	Authors   []*Author `json:"-"`
 	AuthorIDs []string  `json:"-"`
 }
