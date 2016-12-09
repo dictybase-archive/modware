@@ -32,16 +32,24 @@ func JSONAPIError(w http.ResponseWriter, status int, err error, msg string) erro
 	return json.NewEncoder(w).Encode(api2go.HTTPError{Errors: []api2go.Error{jsnErr}})
 }
 
-func GenericError(w http.ResponseWriter, err error) {
+func DatabaseError(w http.ResponseWriter, err error) {
 	if err == dbr.ErrNotFound {
-		err := JSONAPIError(w, http.StatusNotFound, err, resources.ErrNotExist.Error())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		jerr := JSONAPIError(w, http.StatusNotFound, err, resources.ErrNotExist.Error())
+		if jerr != nil {
+			http.Error(w, jerr.Error(), http.StatusInternalServerError)
 		}
 	} else { // possible database query error
-		err := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrDatabaseQuery.Error())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrDatabaseQuery.Error())
+		if jerr != nil {
+			http.Error(w, jerr.Error(), http.StatusInternalServerError)
 		}
 	}
+}
+
+func JSONEncodingError(w http.ResponseWriter, err error) {
+	jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrJSONEncoding.Error())
+	if jerr != nil {
+		http.Error(w, jerr.Error(), http.StatusInternalServerError)
+	}
+
 }
