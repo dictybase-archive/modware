@@ -11,6 +11,7 @@ import (
 var (
 	ErrDatabaseQuery = errors.New("database query error")
 	ErrNotExist      = errors.New("resource not found")
+	ErrJSONEncoding  = errors.New("json encoding error")
 )
 
 // Interface for every http resource to implement
@@ -28,7 +29,7 @@ type Resource interface {
 	// Handles the http DELETE
 	Delete(http.ResponseWriter, *http.Request)
 	// Gets a jsonapi.ServerInformation implementing interface
-	GetApiServerInfo() jsonapi.ServerInformation
+	GetApiServerInfo(*http.Request) jsonapi.ServerInformation
 }
 
 // Type that implements jsonapi.ServerInformation interface
