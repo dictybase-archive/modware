@@ -8,12 +8,12 @@ import (
 )
 
 type Author struct {
-	ID            string         `json:"-"`
-	LastName      string         `json:"last_name"`
-	GivenNames    string         `json:"given_names"`
-	Rank          int            `json:"rank"`
-	Publications  []*Publication `json:"-"`
-	PublictionIDs []string       `json:"-"`
+	ID            string         `json:"-" db:"pubauthor_id"`
+	LastName      string         `json:"last_name" db:"surname"`
+	GivenNames    string         `json:"given_names" db:"givennames"`
+	Rank          int            `json:"rank" db:"rank"`
+	Publications  []*Publication `json:"-" db:"-"`
+	PublictionIDs []string       `json:"-" db:"-"`
 }
 
 func (a *Author) GetID() string {
