@@ -10,7 +10,7 @@ import (
 type Author struct {
 	ID            string         `json:"-"`
 	LastName      string         `json:"last_name"`
-	GivenName     string         `json:"given_name"`
+	GivenNames    string         `json:"given_names"`
 	Rank          int            `json:"rank"`
 	Publications  []*Publication `json:"-"`
 	PublictionIDs []string       `json:"-"`
