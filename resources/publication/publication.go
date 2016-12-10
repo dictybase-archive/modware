@@ -7,6 +7,7 @@ import (
 	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/dictyBase/modware/models/jsonapi/publication"
 	"github.com/dictyBase/modware/render"
+	"github.com/dictyBase/modware/resources"
 	"github.com/gocraft/dbr"
 )
 
@@ -81,6 +82,30 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 		render.DatabaseError(w, err)
 		return
 	}
+	// Now check if authors needs to be included
+	var authors []*publication.Author
+	params := r.URL.Query()
+	if val, ok := params["include"]; ok {
+		if val[0] == "authors" {
+			_, err := sess.Select(
+				"pubauthor.pubauthor_id",
+				"pubauthor.rank",
+				"pubauthor.surname",
+				"pubauthor.givennames",
+			).From("pubauthor").
+				Join("pub", dbr.Eq("pubauthor.pub_id", "pub.pub_id")).
+				Where(
+					dbr.And(
+						dbr.Eq("pub.uniquename", id),
+						dbr.Eq("pub.is_obsolete", "0"),
+					),
+				).LoadStructs(&authors)
+			if err != nil {
+				render.DatabaseError(w, err)
+				return
+			}
+		}
+	}
 
 	// publication type struct that will be converted to json
 	pubj := &publication.Publication{
@@ -109,7 +134,10 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 			pubj.Abstract = v
 		}
 	}
-	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resoures.GetApiServerInfo(r, pub.PathPrefix))
+	if len(authors) > 0 {
+		pubj.Authors = authors
+	}
+	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resources.GetApiServerInfo(r, pub.PathPrefix))
 	if err != nil {
 		render.StructMarshallingError(w, err)
 	}
