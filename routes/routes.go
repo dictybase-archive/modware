@@ -6,7 +6,7 @@ import (
 	"github.com/dictyBase/modware/resources"
 )
 
-func AddPublication(rs resources.Resource, mwChain chain.Chain, r *router.RouterWrapper) {
+func AddPublication(rs resources.Resource, mwChain chain.Chain, r *router.Wrapper) {
 	r.Get("/publications/:id", mwChain.ThenFunc(rs.Get))
 	r.Get("/publications", mwChain.ThenFunc(rs.GetAll))
 	r.Post("/publications", mwChain.ThenFunc(rs.Create))
@@ -14,6 +14,6 @@ func AddPublication(rs resources.Resource, mwChain chain.Chain, r *router.Router
 	r.Delete("/publication/:id", mwChain.ThenFunc(rs.Delete))
 }
 
-func AddAuthor(rs resources.Resource, mwChain chain.Chain, r *router.RouterWrapper) {
+func AddAuthor(rs resources.Resource, mwChain chain.Chain, r *router.Wrapper) {
 
 }
