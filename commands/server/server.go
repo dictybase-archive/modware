@@ -13,17 +13,15 @@ import (
 	"github.com/dictyBase/go-middlewares/middlewares/router"
 	"github.com/dictyBase/modware/resources/publication"
 	"github.com/dictyBase/modware/routes"
-	_ "github.com/lib/pq"
+	"github.com/gocraft/dbr"
+	"github.com/gocraft/dbr/dialect"
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 	"github.com/rs/cors"
 	"gopkg.in/urfave/cli.v1"
 )
 
 func RunServer(c *cli.Context) error {
-	// database handler
-	dbh, err := getPgHandler(c)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 2)
-	}
 
 	// logging middleware
 	loggerMw, err := getLoggerMiddleware(c)
@@ -31,12 +29,17 @@ func RunServer(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 2)
 	}
 	// middleware chain
-	baseChain := chain.NewChain(loggerMw.LoggerMiddlewareFn, cmw.CorsAdapter(cors.Default()))
+	baseChain := chain.NewChain(loggerMw.MiddlewareFn, cmw.CorsAdapter(cors.Default()))
 
+	// database handler
+	dbh, err := getPgWrapper(c)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 2)
+	}
 	// http routes
 	r := router.NewRouter()
-	routes.AddPublication(&publication.Publication{dbh}, baseChain, r)
-	routes.AddAuthor(&publication.Author{dbh}, baseChain, r)
+	routes.AddPublication(&publication.Publication{dbh, c.String("version")}, baseChain, r)
+	routes.AddAuthor(&publication.Author{dbh, c.String("version")}, baseChain, r)
 
 	// start the server
 	log.Printf("Starting modware api web server on port %d\n", c.Int("port"))
@@ -44,11 +47,39 @@ func RunServer(c *cli.Context) error {
 	return nil
 }
 
+func getPgWrapper(c *cli.Context) (*dbr.Connection, error) {
+	var dbh *dbr.Connection
+	h, err := getPgHandler(c)
+	if err != nil {
+		return dbh, err
+	}
+	return &dbr.Connection{
+		DB:            h,
+		Dialect:       dialect.PostgreSQL,
+		EventReceiver: &dbr.NullEventReceiver{},
+	}, nil
+}
+
 func getPgHandler(c *cli.Context) (*sql.DB, error) {
-	connString := fmt.Sprintf("user=%s password=%s dbname=%s host=%s sslmode=disable",
-		c.String("user"), c.String("password"),
-		c.String("database"), c.String("host"))
-	return sql.Open("postgres", connString)
+	var db *sql.DB
+	config := pgx.ConnPoolConfig{
+		ConnConfig: pgx.ConnConfig{
+			Host:      c.String("host"),
+			User:      c.String("user"),
+			Password:  c.String("password"),
+			Database:  c.String("database"),
+			Port:      uint16(c.Int("port")),
+			TLSConfig: nil,
+		}}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		return db, err
+	}
+	db, err = stdlib.OpenFromConnPool(pool)
+	if err != nil {
+		return db, err
+	}
+	return db, nil
 }
 
 func getLoggerMiddleware(c *cli.Context) (*logrus.Logger, error) {
