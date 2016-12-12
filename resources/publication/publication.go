@@ -62,22 +62,7 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 		render.DatabaseError(w, err)
 		return
 	}
-
-	var props []pubProp
-	_, err = sess.Select(
-		"pubprop.value",
-		"cvterm.name as term",
-	).From("pubprop").
-		Join("pub", dbr.Eq("pubprop.pub_id", "pub.pub_id")).
-		Join("cvterm", dbr.Eq("pubprop.type_id", "cvterm.type_id")).
-		Join("cv", dbr.Eq("cvterm.cv_id", "cv.cv_id")).
-		Where(
-			dbr.And(
-				dbr.Eq("pub.uniquename", id),
-				dbr.Eq("pub.is_obsolete", "0"),
-				dbr.Eq("cv.name", "pub_type"),
-			),
-		).LoadStructs(&props)
+	props, err := pub.getProps(sess, id)
 	if err != nil {
 		render.DatabaseError(w, err)
 		return
@@ -147,7 +132,72 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
-
+	pageProps := resources.GetPaginationProp(r)
+	// Get the total no of publications
+	sess := pub.GetDbh().NewSession(nil)
+	var count int
+	err := sess.Select("count(pub_id)").From("pub").LoadValue(&count)
+	if err != nil {
+		render.DatabaseError(w, err)
+		return
+	}
+	pageProps.Records = count
+	// Now get a list of publications within that page range
+	var pubRows []*pubData
+	err = sess.Select(
+		"pub.title",
+		"pub.volume",
+		"pub.series_name",
+		"pub.issue",
+		"pub.pages",
+		"pub.uniquename",
+		"cvterm.name",
+		"pub.pubplace",
+		"pub.pyear",
+	).From("pub").
+		Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(dbr.Eq("pub.is_obsolete", "0")).
+		Paginate(uint64(pageProps.Current), uint64(pageProps.Entries)).
+		LoadStruct(&pubRows)
+	if err != nil {
+		render.DatabaseError(w, err)
+		return
+	}
+	var pubSlice []*publication.Publication
+	for _, pb := range pubRows {
+		props, err := pub.getProps(sess, pb.PubId)
+		if err != nil {
+			render.DatabaseError(w, err)
+			return
+		}
+		pubj := &publication.Publication{
+			ID:      pb.PubId,
+			Title:   pb.Title,
+			Journal: pb.Journal,
+			Year:    pb.Year,
+			Volume:  pb.Volume.String,
+			Pages:   pb.Pages.String,
+			PubType: pb.PubType,
+			Source:  pb.Source,
+			Issue:   pb.Issue.String,
+		}
+		for _, p := range props {
+			v := p.Value
+			switch p.Term {
+			case "doi":
+				pubj.Doi = v
+			case "status":
+				pubj.Status = v
+			case "month":
+				pubj.Month = v
+			case "issn":
+				pubj.Issn = v
+			case "abstract":
+				pubj.Abstract = v
+			}
+		}
+		pubSlice = append(pubSlice, pubj)
+	}
 }
 
 func (pub *Publication) Create(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +209,25 @@ func (pub *Publication) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pub *Publication) Delete(w http.ResponseWriter, r *http.Request) {
+}
+
+func (pub *Publication) getProps(sess *dbr.Session, id string) ([]*pubProp, error) {
+	var props []*pubProp
+	_, err := sess.Select(
+		"pubprop.value",
+		"cvterm.name as term",
+	).From("pubprop").
+		Join("pub", dbr.Eq("pubprop.pub_id", "pub.pub_id")).
+		Join("cvterm", dbr.Eq("pubprop.type_id", "cvterm.type_id")).
+		Join("cv", dbr.Eq("cvterm.cv_id", "cv.cv_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+				dbr.Eq("cv.name", "pub_type"),
+			),
+		).LoadStructs(&props)
+	return props, err
 }
 
 type Author struct {

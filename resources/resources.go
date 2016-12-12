@@ -62,10 +62,10 @@ func GetAPIServerInfo(r *http.Request, prefix string) jsonapi.ServerInformation 
 
 //GetPaginationProp returns an instance of pagination.Prop from the request context.
 //However, if it's not available, returns one with default value
-func GetPaginationProp(r *http.Request) *pagination.Prop {
-	prop, ok := r.Context().Value(pagination.ContextKeyPagination).(*pagination.Prop)
+func GetPaginationProp(r *http.Request) *pagination.Props {
+	prop, ok := r.Context().Value(pagination.ContextKeyPagination).(*pagination.Props)
 	if ok {
 		return prop
 	}
-	return &pagination.Prop{Entries: pagination.DefaultEntries}
+	return &pagination.Props{Entries: pagination.DefaultEntries}
 }
