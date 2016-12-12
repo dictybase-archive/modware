@@ -4,18 +4,23 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/dictyBase/go-middlewares/middlewares/pagination"
 	"github.com/gocraft/dbr"
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 var (
+	//ErrDatabaseQuery represents database query related errors
 	ErrDatabaseQuery = errors.New("database query error")
-	ErrNotExist      = errors.New("resource not found")
-	ErrJSONEncoding  = errors.New("json encoding error")
+	//ErrNotExist represents the absence of an HTTP resource
+	ErrNotExist = errors.New("resource not found")
+	//ErrJSONEncoding represents any json encoding error
+	ErrJSONEncoding = errors.New("json encoding error")
+	//ErrStructMarshal represents any error with marshalling structure
 	ErrStructMarshal = errors.New("structure marshalling error")
 )
 
-// Interface for every http resource to implement
+// Resource is the interface that every http handler have to implement
 type Resource interface {
 	// Gets the database handler
 	GetDbh() *dbr.Connection
@@ -31,23 +36,36 @@ type Resource interface {
 	Delete(http.ResponseWriter, *http.Request)
 }
 
-// Type that implements jsonapi.ServerInformation interface
-type ApiServer struct {
-	BaseUrl string
+// APIServer implements jsonapi.ServerInformation interface
+type APIServer struct {
+	BaseURL string
 	Prefix  string
 }
 
-func (server *ApiServer) GetBaseURL() string {
-	return server.BaseUrl
+//GetBaseURL returns the base path of the server
+func (server *APIServer) GetBaseURL() string {
+	return server.BaseURL
 }
 
-func (server *ApiServer) GetPrefix() string {
+//GetPrefix returns generic prefix for each server path
+func (server *APIServer) GetPrefix() string {
 	return server.Prefix
 }
 
-func GetApiServerInfo(r *http.Request, prefix string) jsonapi.ServerInformation {
-	return &ApiServer{
-		BaseUrl: r.URL.Host,
+// GetAPIServerInfo returns an implementation of jsonapi.ServerInformation
+func GetAPIServerInfo(r *http.Request, prefix string) jsonapi.ServerInformation {
+	return &APIServer{
+		BaseURL: r.URL.Host,
 		Prefix:  prefix,
 	}
+}
+
+//GetPaginationProp returns an instance of pagination.Prop from the request context.
+//However, if it's not available, returns one with default value
+func GetPaginationProp(r *http.Request) *pagination.Prop {
+	prop, ok := r.Context().Value(pagination.ContextKeyPagination).(*pagination.Prop)
+	if ok {
+		return prop
+	}
+	return &pagination.Prop{Entries: pagination.DefaultEntries}
 }

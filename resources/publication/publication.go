@@ -137,7 +137,7 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 	if len(authors) > 0 {
 		pubj.Authors = authors
 	}
-	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resources.GetApiServerInfo(r, pub.PathPrefix))
+	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resources.GetAPIServerInfo(r, pub.PathPrefix))
 	if err != nil {
 		render.StructMarshallingError(w, err)
 	}
