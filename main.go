@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/dictybase/modware/commands/server"
-	"github.com/dictybase/modware/commands/validate"
+	"github.com/dictyBase/modware/commands/server"
+	"github.com/dictyBase/modware/commands/validate"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -20,7 +20,8 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "logformat,lfmt",
-			Usage: "Format of the log file(optional), default is json",
+			Usage: "Format of the log(optional), default is json",
+			Value: "json",
 		},
 		cli.StringFlag{
 			Name:   "user, u",
@@ -52,8 +53,15 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:   "run",
-			Usage:  "runs the jbrowse backend server",
+			Usage:  "runs the api server",
 			Action: server.RunServer,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "version, ver",
+					Usage: "api version",
+					Value: "1.0",
+				},
+			},
 		},
 	}
 	app.Run(os.Args)
