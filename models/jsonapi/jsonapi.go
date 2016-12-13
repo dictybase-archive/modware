@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/dictyBase/go-middlewares/middlewares/pagination"
 	"github.com/manyminds/api2go/jsonapi"
 )
 
@@ -49,7 +50,7 @@ func generatePaginatedResourceLink(baseurl string, pagenum, pagesize int) string
 	)
 }
 
-func MarshalWithPagination(data interface{}, ep jsonapi.ServerInformation, opt PaginationOpt) (*jsonapi.Document, error) {
+func MarshalWithPagination(data interface{}, ep jsonapi.ServerInformation, opt *pagination.Props) (*jsonapi.Document, error) {
 	var jst *jsonapi.Document
 	if reflect.TypeOf(data).Kind() != reflect.Slice {
 		return jst, fmt.Errorf("%s\n", "Only slice type is allowed for pagination")
