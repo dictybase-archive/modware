@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/dictyBase/go-middlewares/middlewares/pagination"
+	"github.com/dictyBase/modware/resources"
 	jsapi "github.com/manyminds/api2go/jsonapi"
 )
 
@@ -13,8 +15,8 @@ const (
 	prefix = "1.0"
 )
 
-func GetApiServerInfo() *ApiServerInfo {
-	return &ApiServerInfo{base, prefix}
+func GetApiServerInfo() *resources.APIServer {
+	return &resources.APIServer{base, prefix}
 }
 
 func TestLinkGeneration(t *testing.T) {
@@ -207,7 +209,7 @@ func TestPaginationLinks(t *testing.T) {
 		},
 	}
 
-	pageOpt := PaginationOpt{
+	pageOpt := &pagination.Props{
 		Records: 100,
 		Entries: 10,
 		Current: 5,
