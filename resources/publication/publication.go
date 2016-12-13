@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/dictyBase/go-middlewares/middlewares/router"
-	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/dictyBase/modware/models/jsonapi/publication"
 	"github.com/dictyBase/modware/render"
 	"github.com/dictyBase/modware/resources"
@@ -122,13 +121,7 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 	if len(authors) > 0 {
 		pubj.Authors = authors
 	}
-	pubJsapi, err := jsapi.MarshalToStructWrapper(pubj, resources.GetAPIServerInfo(r, pub.PathPrefix))
-	if err != nil {
-		render.StructMarshallingError(w, err)
-	}
-	if err := render.JSONAPI(w, http.StatusOK, pubJsapi); err != nil {
-		render.JSONEncodingError(w, err)
-	}
+	render.Resource(pubj, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
 }
 
 func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -198,6 +191,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 		}
 		pubSlice = append(pubSlice, pubj)
 	}
+	render.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 }
 
 func (pub *Publication) Create(w http.ResponseWriter, r *http.Request) {
