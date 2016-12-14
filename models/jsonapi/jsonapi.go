@@ -31,25 +31,6 @@ type MarshalRelatedRelations interface {
 	GetRelatedLinksInfo() []RelationShipLink
 }
 
-// type to configure different pagination properties
-type PaginationOpt struct {
-	// Total no of records that will be paginated
-	Records int
-	// No of entries to have per page
-	Entries int
-	// Current page no
-	Current int
-}
-
-func generatePaginatedResourceLink(baseurl string, pagenum, pagesize int) string {
-	return fmt.Sprintf(
-		"%s?page[number]=%d&page[size]=%d",
-		baseurl,
-		pagenum,
-		pagesize,
-	)
-}
-
 func MarshalWithPagination(data interface{}, ep jsonapi.ServerInformation, opt *pagination.Props) (*jsonapi.Document, error) {
 	var jst *jsonapi.Document
 	if reflect.TypeOf(data).Kind() != reflect.Slice {
@@ -116,6 +97,15 @@ func generateBaseLink(ep jsonapi.ServerInformation) string {
 		"%s/%s",
 		strings.Trim(ep.GetBaseURL(), "/"),
 		strings.Trim(ep.GetPrefix(), "/"),
+	)
+}
+
+func generatePaginatedResourceLink(baseurl string, pagenum, pagesize int) string {
+	return fmt.Sprintf(
+		"%s?page[number]=%d&page[size]=%d",
+		baseurl,
+		pagenum,
+		pagesize,
 	)
 }
 

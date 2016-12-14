@@ -67,5 +67,5 @@ func GetPaginationProp(r *http.Request) *pagination.Props {
 	if ok {
 		return prop
 	}
-	return &pagination.Props{Entries: pagination.DefaultEntries}
+	return &pagination.Props{Entries: pagination.DefaultEntries, Current: 1}
 }
