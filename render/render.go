@@ -39,7 +39,9 @@ func ResourceCollection(data interface{}, srv jsonapi.ServerInformation, w http.
 func JSONAPI(w http.ResponseWriter, status int, data *jsonapi.Document) error {
 	w.Header().Set("Content-Type", "application/vnd.api+json")
 	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(data)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(data)
 }
 
 func JSONAPIError(w http.ResponseWriter, status int, err error, msg string) error {
