@@ -4,12 +4,13 @@ package modwaretest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 )
 
 const (
-	TestAPIHost    = "https://dictybase.org"
-	TestPathPrefix = "1.0"
-	TestPubId      = "99"
+	APIHost    = "https://dictybase.org"
+	PathPrefix = "1.0"
+	PubId      = "99"
 )
 
 // IndentJSON uniformly indent the json byte
@@ -17,4 +18,9 @@ func IndentJSON(b []byte) []byte {
 	var out bytes.Buffer
 	json.Indent(&out, b, "", " ")
 	return bytes.TrimSpace(out.Bytes())
+}
+
+// APIServer returns a server URL
+func APIServer() string {
+	return fmt.Sprintf("%s/%s", APIHost, PathPrefix)
 }
