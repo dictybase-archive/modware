@@ -2,7 +2,6 @@ package render
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,16 +10,12 @@ import (
 	"github.com/dictyBase/go-middlewares/middlewares/pagination"
 
 	jsapi "github.com/dictyBase/modware/models/jsonapi"
+	"github.com/dictyBase/modware/modwaretest"
 	"github.com/dictyBase/modware/resources"
 )
 
-const (
-	base   = "https://api.dictybase.org"
-	prefix = "1.0"
-)
-
 func getApiServerInfo() *resources.APIServer {
-	return &resources.APIServer{base, prefix}
+	return &resources.APIServer{modwaretest.APIHost, modwaretest.PathPrefix}
 }
 
 func TestJSONAPIError(t *testing.T) {
@@ -51,8 +46,8 @@ func TestJSONAPIError(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("unexpected status code %d\n", w.Code)
 	}
-	expJson := IndentJSON(jsonBlob)
-	matchJson := IndentJSON(w.Body.Bytes())
+	expJson := modwaretest.IndentJSON(jsonBlob)
+	matchJson := modwaretest.IndentJSON(w.Body.Bytes())
 	if bytes.Compare(expJson, matchJson) != 0 {
 		t.Fatalf("expected \n%s jsonapi error response does not match with \n%s\n", string(expJson), string(matchJson))
 	}
@@ -89,8 +84,8 @@ func TestResource(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("unexpected status code %d\n", w.Code)
 	}
-	expJson := IndentJSON(jsonBlob)
-	matchJson := IndentJSON(w.Body.Bytes())
+	expJson := modwaretest.IndentJSON(jsonBlob)
+	matchJson := modwaretest.IndentJSON(w.Body.Bytes())
 	if bytes.Compare(expJson, matchJson) != 0 {
 		t.Fatalf("expected \n%s jsonapi error response does not match with \n%s\n", string(expJson), string(matchJson))
 	}
@@ -148,15 +143,9 @@ func TestResourceCollection(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("unexpected status code %d\n", w.Code)
 	}
-	expJson := IndentJSON(jsonBlob)
-	matchJson := IndentJSON(w.Body.Bytes())
+	expJson := modwaretest.IndentJSON(jsonBlob)
+	matchJson := modwaretest.IndentJSON(w.Body.Bytes())
 	if bytes.Compare(expJson, matchJson) != 0 {
 		t.Fatalf("expected \n%s jsonapi error response does not match with \n%s\n", string(expJson), string(matchJson))
 	}
-}
-
-func IndentJSON(b []byte) []byte {
-	var out bytes.Buffer
-	json.Indent(&out, b, "", " ")
-	return bytes.TrimSpace(out.Bytes())
 }
