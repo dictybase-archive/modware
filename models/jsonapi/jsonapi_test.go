@@ -6,22 +6,18 @@ import (
 	"testing"
 
 	"github.com/dictyBase/go-middlewares/middlewares/pagination"
+	"github.com/dictyBase/modware/modwaretest"
 	"github.com/dictyBase/modware/resources"
 	jsapi "github.com/manyminds/api2go/jsonapi"
 )
 
-const (
-	base   = "https://api.dictybase.org"
-	prefix = "1.0"
-)
-
 func GetApiServerInfo() *resources.APIServer {
-	return &resources.APIServer{base, prefix}
+	return &resources.APIServer{modwaretest.APIHost, modwaretest.PathPrefix}
 }
 
 func TestLinkGeneration(t *testing.T) {
 	srvinfo := GetApiServerInfo()
-	exlink := fmt.Sprintf("%s/%s", base, prefix)
+	exlink := fmt.Sprintf("%s/%s", modwaretest.APIHost, modwaretest.PathPrefix)
 	bslink := generateBaseLink(srvinfo)
 	if bslink != exlink {
 		t.Fatalf("expected base link %s does not match with generated link %s", exlink, bslink)

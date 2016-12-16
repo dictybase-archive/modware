@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	APIHost    = "https://dictybase.org"
+	APIHost    = "https://api.dictybase.org"
 	PathPrefix = "1.0"
 	PubId      = "99"
 )
@@ -23,4 +23,16 @@ func IndentJSON(b []byte) []byte {
 // APIServer returns a server URL
 func APIServer() string {
 	return fmt.Sprintf("%s/%s", APIHost, PathPrefix)
+}
+
+// MatchJSON compares actual and expected json
+func MatchJSON(actual []byte, data interface{}) error {
+	expected, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if bytes.Compare(IndentJSON(actual), IndentJSON(expected)) != 0 {
+		return fmt.Errorf("actual %s and expected json %s are different", string(actual), string(expected))
+	}
+	return nil
 }
