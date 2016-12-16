@@ -56,7 +56,7 @@ func (server *APIServer) GetPrefix() string {
 // GetAPIServerInfo returns an implementation of jsonapi.ServerInformation
 func GetAPIServerInfo(r *http.Request, prefix string) jsonapi.ServerInformation {
 	return &APIServer{
-		BaseURL: fmt.Sprintf("%s/%s", r.URL.Scheme, r.URL.Host),
+		BaseURL: fmt.Sprintf("%s://%s", r.URL.Scheme, r.URL.Host),
 		Prefix:  prefix,
 	}
 }
