@@ -32,7 +32,7 @@ func MatchJSON(actual []byte, data interface{}) error {
 		return err
 	}
 	if bytes.Compare(IndentJSON(actual), IndentJSON(expected)) != 0 {
-		return fmt.Errorf("actual %s and expected json %s are different", string(actual), string(expected))
+		return fmt.Errorf("actual %s and expected json %s are different", string(IndentJSON(actual)), string(IndentJSON(expected)))
 	}
 	return nil
 }

@@ -63,16 +63,3 @@ func (u *User) GetRelatedLinksInfo() []RelationShipLink {
 		RelationShipLink{Name: "roles"},
 	}
 }
-
-type ApiServerInfo struct {
-	baseurl string
-	prefix  string
-}
-
-func (server *ApiServerInfo) GetBaseURL() string {
-	return server.baseurl
-}
-
-func (server *ApiServerInfo) GetPrefix() string {
-	return server.prefix
-}

@@ -63,7 +63,7 @@ type Publication struct {
 	Doi       string    `json:"doi"`
 	Title     string    `json:"title"`
 	Abstract  string    `json:"abstract"`
-	Journal   string    `json:"abstract"`
+	Journal   string    `json:"journal"`
 	Year      string    `json:"year"`
 	Volume    string    `json:"volume"`
 	Pages     string    `json:"pages"`
