@@ -128,9 +128,15 @@ func (b httpRequestBuilder) response(w *httptest.ResponseRecorder) httpRequestBu
 	return builder.Set(b, "res", w).(httpRequestBuilder)
 }
 
-// RouterParams sets httprouter's parameter slice eventually to be stored and retreieved the context object
-func (b httpRequestBuilder) RouterParams(params []httprouter.Params) httpRequestBuilder {
-	return builder.Set(b, "params", params).(httpRequestBuilder)
+// AddRouterParam add key and value to httprouter's parameters
+func (b httpRequestBuilder) AddRouterParam(key, value string) httpRequestBuilder {
+	_, ok := builder.Get(b, "params")
+	if !ok {
+		var p httprouter.Params
+		p = append(p, httprouter.Param{Key: key, Value: value})
+		return builder.Set(b, "params", p).(httpRequestBuilder)
+	}
+	return builder.Append(b, "params", httprouter.Param{Key: key, Value: value}).(httpRequestBuilder)
 }
 
 // Expect gets the Response object for further testing
