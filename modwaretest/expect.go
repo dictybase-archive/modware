@@ -3,6 +3,7 @@ package modwaretest
 import (
 	"fmt"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/dictyBase/modware/resources"
 )
@@ -30,6 +31,14 @@ func NewHTTPExpectBuilder(rep Reporter, host string, rs resources.Resource) Expe
 
 // Get configures Request to execute a http GET request
 func (b *HTTPExpectBuilder) Get(path string) RequestBuilder {
-	req := httptest.NewRequest("GET", fmt.Sprintf("%s/%s", b.host, path), nil)
+	req := httptest.NewRequest(
+		"GET",
+		fmt.Sprintf(
+			"%s/%s",
+			b.host,
+			strings.Trim(path, "/"),
+		),
+		nil,
+	)
 	return NewHTTPRequestBuilder(b.reporter, req, b.resource.Get)
 }
