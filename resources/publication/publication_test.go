@@ -1,19 +1,15 @@
 package publication
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/dictyBase/go-middlewares/middlewares/router"
-	"github.com/dictyBase/modware/modwaretest"
+	mwtest "github.com/dictyBase/modware/modwaretest"
 	"github.com/gocraft/dbr"
 	"github.com/gocraft/dbr/dialect"
-	"github.com/julienschmidt/httprouter"
-	"github.com/manyminds/api2go/jsonapi"
+	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -66,62 +62,37 @@ func TestGet(t *testing.T) {
 	mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
 		WillReturnRows(propMockRow)
 
-	//create mock http response and request
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", fmt.Sprintf("%s/%s", modwaretest.APIServer(), modwaretest.PubId), nil)
-	// mock the httprouter.Params in the context
-	params := make(httprouter.Params, 1)
-	params[0].Key = "id"
-	params[0].Value = modwaretest.PubId
-	ctx := context.WithValue(context.Background(), router.ContextKeyParams, params)
-	rctx := r.WithContext(ctx)
-
 	// create the app instance with mock db
-	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: "1.0"}
-	// call the method
-	pubResource.Get(w, rctx)
+	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("unexpected http response %s with http code %d\n", w.Body.String(), w.Code)
+	path := fmt.Sprintf("/publications/%s", mwtest.PubID)
+	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
+		Get(path).
+		AddRouterParam("id", mwtest.PubID).
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+	assert := assert.New(t)
+	if assert.True(cont.Exists("links", "self"), "should have link member") {
+		value, _ := cont.Path("links.self").Data().(string)
+		assert.Equal(
+			value, fmt.Sprintf(
+				"%s/publications/%s",
+				mwtest.APIServer(),
+				mwtest.PubID,
+			),
+			"should match the top level link",
+		)
 	}
-	authorRel := jsonapi.Relationship{
-		Links: &jsonapi.Links{
-			Self:    fmt.Sprintf("%s/publications/%s/relationships/authors", modwaretest.APIServer(), modwaretest.PubId),
-			Related: fmt.Sprintf("%s/publications/%s/authors", modwaretest.APIServer(), modwaretest.PubId),
-		},
+	if assert.True(cont.Exists("data", "type"), "should have type member") {
+		value, _ := cont.Path("data.type").Data().(string)
+		assert.Equal(value, "publications", "should match the type value")
 	}
-	pubjStruct := &jsonapi.Document{
-		Links: &jsonapi.Links{Self: fmt.Sprintf("%s/%s/%s", modwaretest.APIServer(), "publications", modwaretest.PubId)},
-		Data: &jsonapi.DataContainer{
-			DataObject: &jsonapi.Data{
-				Type: "publications",
-				ID:   modwaretest.PubId,
-				Attributes: []byte(`
-					{
-						"doi": "10.1002/dvg.22867",
-						"title": "dictyBase 2015: Expanding data and annotations in a new software environment",
-						"abstract": "This is an abstract",
-						"journal": "Genesis",
-						"year": "2015",
-						"volume": "12",
-						"pages":"765-80",
-						"month": "june",
-						"issn": "1526-968X",
-						"issue":"8",
-						"source": "pubmed",
-						"pub_type": "journal_article",
-						"status": "ppublish"
-					}
-				`),
-				Relationships: map[string]jsonapi.Relationship{"authors": authorRel},
-			},
-		},
-	}
-	if err := modwaretest.MatchJSON(w.Body.Bytes(), pubjStruct); err != nil {
-		t.Error(err)
+	if assert.True(cont.Exists("data", "id"), "should have ID member") {
+		value, _ := cont.Path("data.id").Data().(string)
+		assert.Equal(value, "99", "should match the id value")
 	}
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectation error %s\n", err)
 	}
-
 }
