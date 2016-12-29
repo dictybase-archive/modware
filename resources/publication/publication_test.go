@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	mwtest "github.com/dictyBase/modware/modwaretest"
@@ -28,46 +29,21 @@ func TestGet(t *testing.T) {
 		t.Fatalf("unexpected error %s during stub database connection\n", err)
 	}
 	defer db.Close()
-	pubMockRow := sqlmock.NewRows([]string{
-		"title",
-		"volume",
-		"series_name",
-		"issue",
-		"pages",
-		"uniquename",
-		"name",
-		"pubplace",
-		"pyear",
-	})
-	pubMockRow.AddRow(
-		"dictyBase 2015: Expanding data and annotations in a new software environment",
-		"12",
-		"Genesis",
-		"8",
-		"765-80",
-		"99",
-		"journal_article",
-		"pubmed",
-		"2015",
-	)
+	pubMockRow := sqlmock.NewRows(pubColumns)
+	pubMockRow.FromCSVString(strings.Join(pubTestData[0], ","))
 	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+)").
 		WillReturnRows(pubMockRow)
-
 	propMockRow := sqlmock.NewRows([]string{"value", "term"})
-	propMockRow.AddRow("10.1002/dvg.22867", "doi").
-		AddRow("This is an abstract", "abstract").
-		AddRow("ppublish", "status").
-		AddRow("june", "month").
-		AddRow("1526-968X", "issn")
+	for k, v := range propTestData[0] {
+		propMockRow.AddRow(v, k)
+	}
 	mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
 		WillReturnRows(propMockRow)
 
 	// create the app instance with mock db
 	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
-
-	path := fmt.Sprintf("/publications/%s", mwtest.PubID)
 	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
-		Get(path).
+		Get(fmt.Sprintf("/publications/%s", mwtest.PubID)).
 		AddRouterParam("id", mwtest.PubID).
 		Expect().
 		Status(http.StatusOK).
