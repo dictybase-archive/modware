@@ -20,6 +20,7 @@ type Reporter interface {
 type ResponseBuilder interface {
 	JSON() *gabs.Container
 	Status(int) ResponseBuilder
+	DumpJSON() string
 }
 
 // HTTPResponseBuilder implements ResponseBuilder interface
@@ -30,9 +31,9 @@ type HTTPResponseBuilder struct {
 }
 
 // NewHTTPResponseBuilder is the constructor for HTTPResponseBuilder
-func NewHTTPResponseBuilder(r Reporter, w *httptest.ResponseRecorder) ResponseBuilder {
+func NewHTTPResponseBuilder(rep Reporter, w *httptest.ResponseRecorder) ResponseBuilder {
 	b := &HTTPResponseBuilder{
-		reporter: r,
+		reporter: rep,
 		response: w,
 	}
 	return b
@@ -57,4 +58,9 @@ func (b *HTTPResponseBuilder) JSON() *gabs.Container {
 		b.reporter.Fatalf("unable to parse json from response body %s\n", err)
 	}
 	return cont
+}
+
+// DumpJSON returns the JSON string from the response
+func (b *HTTPResponseBuilder) DumpJSON() string {
+	return string(IndentJSON(b.response.Body.Bytes()))
 }
