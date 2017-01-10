@@ -36,7 +36,14 @@ func TestJSONAPIError(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	detailErr := errors.New("json api fake test error")
-	err := JSONAPIError(w, http.StatusBadRequest, detailErr, "json api test")
+	err := JSONAPIError(
+		w,
+		http.StatusBadRequest,
+		&APIErrorOptions{
+			Detail: detailErr.Error(),
+			Title:  "json api test",
+		},
+	)
 	if err != nil {
 		t.Fatalf("unexpected rendering error %s\n", err)
 	}

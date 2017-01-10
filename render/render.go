@@ -14,6 +14,14 @@ import (
 	"github.com/manyminds/api2go/jsonapi"
 )
 
+// APIErrorOptions specifies the optional parameters for displaying jsonapi formatted http errors
+type APIErrorOptions struct {
+	Title     string
+	Detail    string
+	Pointer   string
+	Parameter string
+}
+
 // Resource generates jsonapi response for resource
 func Resource(data interface{}, srv jsonapi.ServerInformation, w http.ResponseWriter) {
 	doc, err := jsapi.MarshalToStructWrapper(data, srv)
@@ -44,28 +52,48 @@ func JSONAPI(w http.ResponseWriter, status int, data *jsonapi.Document) error {
 	return enc.Encode(data)
 }
 
-func JSONAPIError(w http.ResponseWriter, status int, err error, msg string) error {
+func JSONAPIError(w http.ResponseWriter, status int, opt *APIErrorOptions) error {
 	w.Header().Set("Content-Type", "application/vnd.api+json")
 	w.WriteHeader(status)
 	jsnErr := api2go.Error{
 		Status: strconv.Itoa(status),
-		Title:  msg,
-		Detail: err.Error(),
+		Title:  opt.Title,
+		Detail: opt.Detail,
 		Meta: map[string]interface{}{
 			"creator": "modware api",
 		},
+	}
+	if len(opt.Pointer) > 0 {
+		jsnErr.Source.Pointer = opt.Pointer
+	}
+	if len(opt.Parameter) > 0 {
+		jsnErr.Source.Parameter = opt.Parameter
 	}
 	return json.NewEncoder(w).Encode(api2go.HTTPError{Errors: []api2go.Error{jsnErr}})
 }
 
 func DatabaseError(w http.ResponseWriter, err error) {
 	if err == dbr.ErrNotFound {
-		jerr := JSONAPIError(w, http.StatusNotFound, err, resources.ErrNotExist.Error())
+		jerr := JSONAPIError(
+			w,
+			http.StatusNotFound,
+			&APIErrorOptions{
+				Detail: err.Error(),
+				Title:  resources.ErrNotExist.Error(),
+			},
+		)
 		if jerr != nil {
 			http.Error(w, jerr.Error(), http.StatusInternalServerError)
 		}
 	} else { // possible database query error
-		jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrDatabaseQuery.Error())
+		jerr := JSONAPIError(
+			w,
+			http.StatusInternalServerError,
+			&APIErrorOptions{
+				Detail: err.Error(),
+				Title:  resources.ErrDatabaseQuery.Error(),
+			},
+		)
 		if jerr != nil {
 			http.Error(w, jerr.Error(), http.StatusInternalServerError)
 		}
@@ -73,14 +101,28 @@ func DatabaseError(w http.ResponseWriter, err error) {
 }
 
 func StructMarshallingError(w http.ResponseWriter, err error) {
-	jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrStructMarshal.Error())
+	jerr := JSONAPIError(
+		w,
+		http.StatusInternalServerError,
+		&APIErrorOptions{
+			Detail: err.Error(),
+			Title:  resources.ErrStructMarshal.Error(),
+		},
+	)
 	if jerr != nil {
 		http.Error(w, jerr.Error(), http.StatusInternalServerError)
 	}
 }
 
 func JSONEncodingError(w http.ResponseWriter, err error) {
-	jerr := JSONAPIError(w, http.StatusInternalServerError, err, resources.ErrJSONEncoding.Error())
+	jerr := JSONAPIError(
+		w,
+		http.StatusInternalServerError,
+		&APIErrorOptions{
+			Detail: err.Error(),
+			Title:  resources.ErrJSONEncoding.Error(),
+		},
+	)
 	if jerr != nil {
 		http.Error(w, jerr.Error(), http.StatusInternalServerError)
 	}
