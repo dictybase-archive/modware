@@ -127,3 +127,18 @@ func JSONEncodingError(w http.ResponseWriter, err error) {
 		http.Error(w, jerr.Error(), http.StatusInternalServerError)
 	}
 }
+
+func IncludeParamError(w http.ResponseWriter, detail string) {
+	jerr := JSONAPIError(
+		w,
+		http.StatusBadRequest,
+		&APIErrorOptions{
+			Detail:    detail,
+			Title:     resources.ErrIncludeParam.Error(),
+			Parameter: "include",
+		},
+	)
+	if jerr != nil {
+		http.Error(w, jerr.Error(), http.StatusInternalServerError)
+	}
+}

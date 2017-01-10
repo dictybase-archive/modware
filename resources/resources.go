@@ -12,13 +12,15 @@ import (
 
 var (
 	//ErrDatabaseQuery represents database query related errors
-	ErrDatabaseQuery = errors.New("database query error")
+	ErrDatabaseQuery = errors.New("Database query error")
 	//ErrNotExist represents the absence of an HTTP resource
-	ErrNotExist = errors.New("resource not found")
+	ErrNotExist = errors.New("Resource not found")
 	//ErrJSONEncoding represents any json encoding error
-	ErrJSONEncoding = errors.New("json encoding error")
+	ErrJSONEncoding = errors.New("Json encoding error")
 	//ErrStructMarshal represents any error with marshalling structure
-	ErrStructMarshal = errors.New("structure marshalling error")
+	ErrStructMarshal = errors.New("Structure marshalling error")
+	//ErrIncludeParam represents any error with invalid include query parameter
+	ErrIncludeParam = errors.New("Invalid include query parameter")
 )
 
 // Resource is the interface that every http handler have to implement
