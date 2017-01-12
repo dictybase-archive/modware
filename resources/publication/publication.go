@@ -3,7 +3,10 @@ package publication
 import (
 	"net/http"
 
+	"github.com/dictyBase/apihelpers/apherror"
+	"github.com/dictyBase/go-middlewares/middlewares/query"
 	"github.com/dictyBase/go-middlewares/middlewares/router"
+	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/dictyBase/modware/models/jsonapi/publication"
 	"github.com/dictyBase/modware/render"
 	"github.com/dictyBase/modware/resources"
@@ -37,6 +40,18 @@ func (pub *Publication) GetDbh() *dbr.Connection {
 }
 
 func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
+	//Validates include params
+	p, ok := r.Context().Value(query.ContextKeyQueryParams).(*query.Params)
+	if ok && p.HasIncludes {
+		err := jsapi.ValidateRelationships(&publication.Publication{}, p.Includes)
+		if err != nil {
+			apherror.JSONAPIError(
+				w,
+				apherror.ErrIncludeParam.New(err.Error()),
+			)
+			return
+		}
+	}
 	id := router.Params(r).ByName("id")
 	sess := pub.GetDbh().NewSession(nil)
 	var pubRow pubData
@@ -58,39 +73,23 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 			),
 		).LoadStruct(&pubRow)
 	if err != nil {
-		render.DatabaseError(w, err)
+		apherror.DatabaseError(w, err)
 		return
 	}
 	props, err := pub.getProps(sess, id)
 	if err != nil {
-		render.DatabaseError(w, err)
+		apherror.DatabaseError(w, err)
 		return
 	}
-	// Now check if authors needs to be included
 	var authors []*publication.Author
-	params := r.URL.Query()
-	if val, ok := params["include"]; ok {
-		if val[0] == "authors" {
-			_, err := sess.Select(
-				"pubauthor.pubauthor_id",
-				"pubauthor.rank",
-				"pubauthor.surname",
-				"pubauthor.givennames",
-			).From("pubauthor").
-				Join("pub", dbr.Eq("pubauthor.pub_id", "pub.pub_id")).
-				Where(
-					dbr.And(
-						dbr.Eq("pub.uniquename", id),
-						dbr.Eq("pub.is_obsolete", "0"),
-					),
-				).LoadStructs(&authors)
-			if err != nil {
-				render.DatabaseError(w, err)
-				return
-			}
+	if ok && p.HasIncludes {
+		// Now include author
+		authors, err = pub.getAuthors(sess, id)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
 		}
 	}
-
 	// publication type struct that will be converted to json
 	pubj := &publication.Publication{
 		ID:      pubRow.PubId,
@@ -131,7 +130,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 	var count int
 	err := sess.Select("count(pub_id)").From("pub").LoadValue(&count)
 	if err != nil {
-		render.DatabaseError(w, err)
+		apherror.DatabaseError(w, err)
 		return
 	}
 	pageProps.Records = count
@@ -153,14 +152,14 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 		Paginate(uint64(pageProps.Current), uint64(pageProps.Entries)).
 		LoadStruct(&pubRows)
 	if err != nil {
-		render.DatabaseError(w, err)
+		apherror.DatabaseError(w, err)
 		return
 	}
 	var pubSlice []*publication.Publication
 	for _, pb := range pubRows {
 		props, err := pub.getProps(sess, pb.PubId)
 		if err != nil {
-			render.DatabaseError(w, err)
+			apherror.DatabaseError(w, err)
 			return
 		}
 		pubj := &publication.Publication{
@@ -222,6 +221,27 @@ func (pub *Publication) getProps(sess *dbr.Session, id string) ([]*pubProp, erro
 			),
 		).LoadStructs(&props)
 	return props, err
+}
+
+func (pub *Publication) getAuthors(sess *dbr.Session, id string) ([]*publication.Author, error) {
+	var authors []*publication.Author
+	_, err := sess.Select(
+		"pubauthor.pubauthor_id",
+		"pubauthor.rank",
+		"pubauthor.surname",
+		"pubauthor.givennames",
+	).From("pubauthor").
+		Join("pub", dbr.Eq("pubauthor.pub_id", "pub.pub_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+			),
+		).LoadStructs(&authors)
+	if err != nil {
+		return authors, err
+	}
+	return authors, nil
 }
 
 type Author struct {
