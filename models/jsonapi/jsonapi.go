@@ -175,16 +175,16 @@ func ValidateRelationships(data interface{}, rels []string) error {
 	self, ok := data.(MarshalSelfRelations)
 	if ok {
 		for _, rel := range self.GetSelfLinksInfo() {
-			if !Include(rels, rel) {
-				return fmt.Errorf("cannot match %s self relationship", rel)
+			if !Include(rels, rel.Name) {
+				return fmt.Errorf("cannot match %s self relationship", rel.Name)
 			}
 		}
 	}
-	self, ok := data.(MarshalRelatedRelations)
+	related, ok := data.(MarshalRelatedRelations)
 	if ok {
-		for _, rel := range self.GetRelatedLinksInfo() {
-			if !Include(rels, rel) {
-				return fmt.Errorf("cannot match %s self relationship", rel)
+		for _, rel := range related.GetRelatedLinksInfo() {
+			if !Include(rels, rel.Name) {
+				return fmt.Errorf("cannot match %s self relationship", rel.Name)
 			}
 		}
 	}
