@@ -87,12 +87,6 @@ func (pub *Publication) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	}
 }
 
-func (pub *Publication) GetSelfLinksInfo() []jsapi.RelationShipLink {
-	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "authors"},
-	}
-}
-
 func (pub *Publication) SetID(id string) error {
 	pub.ID = id
 	return nil
