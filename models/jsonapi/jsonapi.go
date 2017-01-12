@@ -168,3 +168,38 @@ func generateRelationshipLinks(data interface{}, jdata *jsonapi.Data, ep jsonapi
 	}
 	return relationships
 }
+
+//ValidateRelationships matches if the relationships are implemented in the
+//given JSONAPI implementing type
+func ValidateRelationships(data interface{}, rels []string) error {
+	self, ok := data.(MarshalSelfRelations)
+	if ok {
+		for _, rel := range self.GetSelfLinksInfo() {
+			if !Include(rels, rel) {
+				return fmt.Errorf("cannot match %s self relationship", rel)
+			}
+		}
+	}
+	self, ok := data.(MarshalRelatedRelations)
+	if ok {
+		for _, rel := range self.GetRelatedLinksInfo() {
+			if !Include(rels, rel) {
+				return fmt.Errorf("cannot match %s self relationship", rel)
+			}
+		}
+	}
+	return nil
+}
+
+func Index(sl []string, t string) int {
+	for i, v := range sl {
+		if v == t {
+			return i
+		}
+	}
+	return -1
+}
+
+func Include(sl []string, t string) bool {
+	return Index(sl, t) >= 0
+}
