@@ -7,9 +7,9 @@ import (
 	"github.com/dictyBase/modware/models/jsonapi"
 )
 
-//ValidateRelationships matches if the relationships are implemented in the
+//Relationships matches if the relationships are implemented in the
 //given JSONAPI implementing type
-func ValidateRelationships(data interface{}, rels []string) error {
+func Relationships(data interface{}, rels []string) error {
 	self, ok := data.(jsonapi.MarshalSelfRelations)
 	if ok {
 		for _, rel := range self.GetSelfLinksInfo() {
