@@ -7,8 +7,8 @@ import (
 	"github.com/dictyBase/modware/models/jsonapi"
 )
 
-//Relationships matches if the relationships are implemented in the
-//given JSONAPI implementing type
+//Relationships matches if the relationships rels are implemented in the
+//given JSONAPI implementing data
 func Relationships(data interface{}, rels []string) error {
 	hasSelf, hasRelated := false
 	self, ok := data.(jsonapi.MarshalSelfRelations)

@@ -3,9 +3,13 @@ package publication
 import (
 	"fmt"
 
-	jsapi "github.com/dictyBase/modware/models/jsonapi"
+	"gopkg.in/go-playground/validator.v9"
+
+	jsapi "github.com/dictyBase/apihelpers/aphjsonapi"
 	"github.com/manyminds/api2go/jsonapi"
 )
+
+var validate *validator.Validate
 
 type Author struct {
 	ID            string         `json:"-" db:"pubauthor_id"`
@@ -29,16 +33,19 @@ func (a *Author) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
 		jsapi.RelationShipLink{
 			Name: "publications",
+			Type: "publications",
 		},
 	}
 }
 
-func (a *Author) GetSelfLinksInfo() []jsapi.RelationShipLink {
-	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{
-			Name: "publications",
-		},
+func (a *Author) ValidateRelatedLinks() error {
+	validate = validator.New()
+	for _, v := range a.GetRelatedLinksInfo() {
+		if err := validate.Struct(v); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (a *Author) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
@@ -83,8 +90,18 @@ func (pub *Publication) GetID() string {
 
 func (pub *Publication) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "authors"},
+		jsapi.RelationShipLink{Name: "authors", Type: "authors"},
 	}
+}
+
+func (pub *Publication) ValidateRelatedLinks() error {
+	validate = validator.New()
+	for _, v := range pub.GetRelatedLinksInfo() {
+		if err := validate.Struct(v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (pub *Publication) SetID(id string) error {
