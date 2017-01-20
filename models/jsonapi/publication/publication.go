@@ -125,3 +125,11 @@ func (pub *Publication) SetToManyReferenceIDs(name string, IDs []string) error {
 	}
 	return fmt.Errorf("%s No such has many relationships", name)
 }
+
+func (pub *Publication) GetAttributeFields(name string) []string {
+	var attr []string
+	if name == "authors" {
+		attr = jsapi.GetAttributeFields(&Author{})
+	}
+	return attr
+}
