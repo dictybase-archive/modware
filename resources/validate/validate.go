@@ -17,7 +17,7 @@ func Params(r *http.Request, data interface{}) (*query.Params, bool, error) {
 	if !ok {
 		return p, ok, nil
 	}
-	allRels := jsvalidate.GetAllRelationships(data)
+	allRels := jsapi.GetAllRelationships(data)
 	if p.HasIncludes {
 		if len(allRels) == 0 {
 			return p, ok, apherror.ErrIncludeParam.New("No relationship defined")
@@ -26,6 +26,12 @@ func Params(r *http.Request, data interface{}) (*query.Params, bool, error) {
 			return p, ok, err
 		}
 	}
+	if p.HasSparseFields {
+		if err := FieldsParam(p, allRels, data); err != nil {
+			return p, ok, err
+		}
+	}
+	return p, ok, nil
 }
 
 //IncludeParam validates the include param of JSONAPI specifications
@@ -34,14 +40,19 @@ func IncludeParam(p *query.Params, rs []jsapi.RelationShipLink) error {
 	if err != nil {
 		return apherror.ErrIncludeParam.New(err.Error())
 	}
+	return nil
 }
 
 //FieldsParam validates the fields(sparse fieldsets) param of JSONAPI specifications
+//and set the Relationship field of query.Params object.
 func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{}) error {
 	tn := jsapi.GetTypeName(data)
-	attrs := jsapi.AttributeNames(data)
+	attrs, err := jsapi.GetAttributeFields(data)
+	if err != nil {
+		return err
+	}
 	for ftype, f := range p.SparseFields {
-		if name == tn {
+		if ftype == tn {
 			for _, field := range f.GetAll() {
 				if !aphcollection.Contains(attrs, field) {
 					return apherror.ErrQueryParam.New(
@@ -49,6 +60,7 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 					)
 				}
 			}
+			p.SparseFields[ftype].Relationship = false
 			continue
 		}
 		if len(rs) == 0 {
@@ -65,7 +77,7 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 			return apherror.ErrQueryParam.New("resource %s of sparse field %s is not in include param", rname, ftype)
 		}
 		// Check the attribute fields of relationship resource
-		atype, ok := data.(jsapi.RelationshipAttributes)
+		atype, ok := data.(jsapi.RelationshipAttribute)
 		if !ok {
 			apherror.ErrQueryParam.New(
 				fmt.Sprintf("RelationshipAttribute interface not defined for relationship resource %s", ftype),
