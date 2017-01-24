@@ -52,7 +52,7 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 		if name == tn {
 			for _, field := range f.GetAll() {
 				if !aphcollection.Contains(attrs, field) {
-					return apherror.ErrQueryParam.New(
+					return apherror.ErrSparseFieldSets.New(
 						fmt.Sprintf("field value %s is not an attribute in resource %s", field, ftype),
 					)
 				}
@@ -61,29 +61,29 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 			continue
 		}
 		if len(rs) == 0 {
-			return apherror.ErrQueryParam.New(
+			return apherror.ErrSparseFieldSets.New(
 				fmt.Sprintf("no relationship defined, cannot process resource %s in sparse field", ftype),
 			)
 		}
 		rname, err := jsvalidate.RelationshipResourceType(ftype, rs)
 		if err != nil {
-			return apherror.ErrQueryParam.New(err.Error())
+			return apherror.ErrSparseFieldSets.New(err.Error())
 		}
 		// Now the relationship name should be in include param
 		if !aphcollection.Contains(p.Includes, rname) {
-			return apherror.ErrQueryParam.New("resource %s of sparse field %s is not in include param", rname, ftype)
+			return apherror.ErrSparseFieldSets.New("resource %s of sparse field %s is not in include param", rname, ftype)
 		}
 		// Check the attribute fields of relationship resource
 		atype, ok := data.(jsapi.RelationshipAttribute)
 		if !ok {
-			apherror.ErrQueryParam.New(
+			apherror.ErrSparseFieldSets.New(
 				fmt.Sprintf("RelationshipAttribute interface not defined for relationship resource %s", ftype),
 			)
 		}
 		rattrs := atype.GetAttributeFields(ftype)
 		for _, field := range f.GetAll() {
 			if !aphcollection.Contains(rattrs, field) {
-				return apherror.ErrQueryParam.New(
+				return apherror.ErrSparseFieldSets.New(
 					fmt.Sprintf("field value %s is not an attribute in relationship resource %s", field, ftype),
 				)
 			}
