@@ -47,9 +47,9 @@ func IncludeParam(p *query.Params, rs []jsapi.RelationShipLink) error {
 //and set the Relationship field of query.Params object.
 func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{}) error {
 	tn := jsapi.GetTypeName(data)
-	attrs := jsapi.AttributeNames(data)
+	attrs := jsapi.GetAttributeFields(data)
 	for ftype, f := range p.SparseFields {
-		if name == tn {
+		if ftype == tn {
 			for _, field := range f.GetAll() {
 				if !aphcollection.Contains(attrs, field) {
 					return apherror.ErrSparseFieldSets.New(
