@@ -31,6 +31,11 @@ func Params(r *http.Request, data interface{}) (*query.Params, bool, error) {
 			return p, ok, err
 		}
 	}
+	if p.HasFilters {
+		if err := FilterParam(p, data); err != nil {
+			return p, ok, err
+		}
+	}
 	return p, ok, nil
 }
 
@@ -90,6 +95,22 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 		}
 		// tag the relationship resource type in sparse fieldset
 		f.Relationship = true
+	}
+	return nil
+}
+
+// FilterParam validates the filter query parameters in JSONAPI specifications
+func FilterParam(p *query.Params, data interface{}) error {
+	attrs := jsapi.GetFilterAttributes(data)
+	if len(attrs) == 0 {
+		return apherror.ErrFilterParam.New("no filter attributes defined")
+	}
+	for k, _ := range p.Filters {
+		if !aphcollection.Contains(attrs, k) {
+			return apherror.ErrFilterParam.New(
+				fmt.Sprintf("given filter param %s is not defined as filter attribute in the resource", k),
+			)
+		}
 	}
 	return nil
 }
