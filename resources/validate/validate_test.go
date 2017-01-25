@@ -104,7 +104,7 @@ func getRelationships(data interface{}) []jsapi.RelationShipLink {
 	return jsapi.GetAllRelationships(data)
 }
 
-func TestPrimaryResource(t *testing.T) {
+func TestPrimaryResourceSpField(t *testing.T) {
 	p := getParamsWithSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -117,7 +117,7 @@ func TestPrimaryResource(t *testing.T) {
 	}
 }
 
-func TestPrimaryResourceInvalidField(t *testing.T) {
+func TestPrimaryResourceInvalidSpField(t *testing.T) {
 	p := getWrongParamsWithSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -131,7 +131,7 @@ func TestPrimaryResourceInvalidField(t *testing.T) {
 	}
 }
 
-func TestRelationshipResource(t *testing.T) {
+func TestRelationshipResourceSpField(t *testing.T) {
 	p := getParamsWithRelationshipSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -144,7 +144,7 @@ func TestRelationshipResource(t *testing.T) {
 	}
 }
 
-func TestEmptyRelationshipResource(t *testing.T) {
+func TestEmptyRelationshipResourceSpField(t *testing.T) {
 	p := getParamsWithRelationshipSparseF()
 	u := getPrimaryResource()
 	var allRels []jsapi.RelationShipLink
@@ -158,7 +158,7 @@ func TestEmptyRelationshipResource(t *testing.T) {
 	}
 }
 
-func TestAllResources(t *testing.T) {
+func TestAllResourcesSpField(t *testing.T) {
 	p := getAllParamsWithSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -174,7 +174,7 @@ func TestAllResources(t *testing.T) {
 	}
 }
 
-func TestRelResourceInvalidField(t *testing.T) {
+func TestRelResourceInvalidSpField(t *testing.T) {
 	p := getWrongResourceWithRelSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -188,7 +188,7 @@ func TestRelResourceInvalidField(t *testing.T) {
 	}
 }
 
-func TestRelResourceWrongIncludeField(t *testing.T) {
+func TestRelResourceWrongIncludeSpField(t *testing.T) {
 	p := getAllParamsWithSparseF()
 	p.Includes = []string{"authors"}
 	u := getPrimaryResource()
@@ -203,7 +203,7 @@ func TestRelResourceWrongIncludeField(t *testing.T) {
 	}
 }
 
-func TestRelResourceWrongField(t *testing.T) {
+func TestRelResourceWrongSpField(t *testing.T) {
 	p := getWrongFieldValWithRelSparseF()
 	u := getPrimaryResource()
 	allRels := getRelationships(u)
@@ -212,6 +212,56 @@ func TestRelResourceWrongField(t *testing.T) {
 		t.Fatalf("actual error type does not match with expected type %s", err)
 	}
 	m, rerr := regexp.MatchString("field value authors", err.Error())
+	if !m {
+		t.Fatalf("actual error message %s does not match with expected message %s", rerr, err)
+	}
+}
+
+func TestFilterParams(t *testing.T) {
+	q := &query.Params{
+		Filters: map[string]string{
+			"name": "bhola",
+		},
+		HasFilters: true,
+	}
+	u := getPrimaryResource()
+	err := FilterParam(q, u)
+	if err != nil {
+		t.Errorf("unexpected error %s in validating filtering field", err)
+	}
+}
+
+func TestInvalidFilterParams(t *testing.T) {
+	q := &query.Params{
+		Filters: map[string]string{
+			"name":  "bhola",
+			"email": "abc",
+		},
+		HasFilters: true,
+	}
+	u := getPrimaryResource()
+	err := FilterParam(q, u)
+	if !apherror.ErrFilterParam.Contains(err) {
+		t.Fatalf("actual error type does not match with expected type %s", err)
+	}
+	m, rerr := regexp.MatchString("given filter param email", err.Error())
+	if !m {
+		t.Fatalf("actual error message %s does not match with expected message %s", rerr, err)
+	}
+}
+
+func TestNoFilterParams(t *testing.T) {
+	q := &query.Params{
+		Filters: map[string]string{
+			"role": "bhetki",
+		},
+		HasFilters: true,
+	}
+	err := FilterParam(q, &Role{})
+	if !apherror.ErrFilterParam.Contains(err) {
+		t.Fatalf("actual error type does not match with expected type %s", err)
+	}
+	m, rerr := regexp.MatchString("no filter attributes", err.Error())
 	if !m {
 		t.Fatalf("actual error message %s does not match with expected message %s", rerr, err)
 	}
