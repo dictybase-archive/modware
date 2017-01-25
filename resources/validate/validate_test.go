@@ -104,6 +104,32 @@ func getRelationships(data interface{}) []jsapi.RelationShipLink {
 	return jsapi.GetAllRelationships(data)
 }
 
+func TestIncludeParams(t *testing.T) {
+	q := &query.Params{
+		Includes:    []string{"roles"},
+		HasIncludes: true,
+	}
+	u := getPrimaryResource()
+	allRels := getRelationships(u)
+	err := IncludeParam(q, allRels)
+	if err != nil {
+		t.Errorf("unexpected error in matching include params %s", err)
+	}
+}
+
+func TestInvalidIncludeParam(t *testing.T) {
+	q := &query.Params{
+		Includes:    []string{"authors"},
+		HasIncludes: true,
+	}
+	u := getPrimaryResource()
+	allRels := getRelationships(u)
+	err := IncludeParam(q, allRels)
+	if !apherror.ErrIncludeParam.Contains(err) {
+		t.Fatalf("actual error type does not match with expected type %s", err)
+	}
+}
+
 func TestPrimaryResourceSpField(t *testing.T) {
 	p := getParamsWithSparseF()
 	u := getPrimaryResource()

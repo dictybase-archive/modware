@@ -53,7 +53,7 @@ func (r *Role) ValidateRelatedLinks() error {
 
 type User struct {
 	ID    string  `json:"-"`
-	Name  string  `json:"name"`
+	Name  string  `json:"name" filter:"-"`
 	Email string  `json:"email"`
 	Roles []*Role `json:"-"`
 }
@@ -76,6 +76,14 @@ func (u *User) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
 		jsapi.RelationShipLink{Name: "roles", Type: "roles"},
 	}
+}
+
+func (u *User) GetAttributeFields(name string) []string {
+	var attr []string
+	if name == "roles" {
+		attr = append(attr, jsapi.GetAttributeFields(&Role{})...)
+	}
+	return attr
 }
 
 func (u *User) ValidateRelatedLinks() error {
