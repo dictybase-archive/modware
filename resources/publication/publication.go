@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/dictyBase/apihelpers/apherror"
+	"github.com/dictyBase/apihelpers/aphrender"
 	"github.com/dictyBase/go-middlewares/middlewares/query"
 	"github.com/dictyBase/go-middlewares/middlewares/router"
-	jsapi "github.com/dictyBase/modware/models/jsonapi"
 	"github.com/dictyBase/modware/models/jsonapi/publication"
 	"github.com/dictyBase/modware/render"
 	"github.com/dictyBase/modware/resources"
+	"github.com/dictyBase/modware/resources/validate"
 	"github.com/gocraft/dbr"
 )
 
@@ -40,87 +41,56 @@ func (pub *Publication) GetDbh() *dbr.Connection {
 }
 
 func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
-	//Validates include params
-	p, ok := r.Context().Value(query.ContextKeyQueryParams).(*query.Params)
-	if ok && p.HasIncludes {
-		err := jsapi.ValidateRelationships(&publication.Publication{}, p.Includes)
-		if err != nil {
-			apherror.JSONAPIError(
-				w,
-				apherror.ErrIncludeParam.New(err.Error()),
-			)
-			return
-		}
+	//Validates all params
+	p, ok, err := validate.Params(r, &publication.Publication{})
+	if err != nil {
+		apherror.JSONAPIError(w, err)
+		return
 	}
 	id := router.Params(r).ByName("id")
 	sess := pub.GetDbh().NewSession(nil)
-	var pubRow pubData
-	err := sess.Select(
-		"pub.title",
-		"pub.volume",
-		"pub.series_name",
-		"pub.issue",
-		"pub.pages",
-		"pub.uniquename",
-		"cvterm.name",
-		"pub.pubplace",
-		"pub.pyear",
-	).From("pub").Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
-		Where(
-			dbr.And(
-				dbr.Eq("pub.uniquename", id),
-				dbr.Eq("pub.is_obsolete", "0"),
-			),
-		).LoadStruct(&pubRow)
-	if err != nil {
-		apherror.DatabaseError(w, err)
-		return
-	}
-	props, err := pub.getProps(sess, id)
-	if err != nil {
-		apherror.DatabaseError(w, err)
-		return
-	}
-	var authors []*publication.Author
-	if ok && p.HasIncludes {
-		// Now include author
-		authors, err = pub.getAuthors(sess, id)
+	pubStr := new(publication.Publication)
+	if ok {
+		authors := make([]*publication.Author, 0)
+		switch {
+		case includeAuthors(p):
+			authors, err = pub.getAuthors(sess, id)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+		case p.HasSparseFields:
+			pubStr, err = pub.getSelectedRows(p.SparseFields["publications"], sess, id)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+			if _, ok := p.SparseFields["authors"]; ok {
+				authors, err = pub.getSelectedAuthors(p.SparseFields["authors"], sess, id)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+			}
+		}
+		if len(pubStr.ID) == 0 {
+			pubStr, err = pub.getRows(sess, id)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+		}
+		if len(authors) > 0 {
+			pubStr.Author = authors
+		}
+	} else {
+		pubStr, err = pub.getRows(sess, id)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
 	}
-	// publication type struct that will be converted to json
-	pubj := &publication.Publication{
-		ID:      pubRow.PubId,
-		Title:   pubRow.Title,
-		Journal: pubRow.Journal,
-		Year:    pubRow.Year,
-		Volume:  pubRow.Volume.String,
-		Pages:   pubRow.Pages.String,
-		PubType: pubRow.PubType,
-		Source:  pubRow.Source,
-		Issue:   pubRow.Issue.String,
-	}
-	for _, p := range props {
-		v := p.Value
-		switch p.Term {
-		case "doi":
-			pubj.Doi = v
-		case "status":
-			pubj.Status = v
-		case "month":
-			pubj.Month = v
-		case "issn":
-			pubj.Issn = v
-		case "abstract":
-			pubj.Abstract = v
-		}
-	}
-	if len(authors) > 0 {
-		pubj.Authors = authors
-	}
-	render.Resource(pubj, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
+	aphrender.Resource(pubStr, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
 }
 
 func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -204,6 +174,60 @@ func (pub *Publication) Update(w http.ResponseWriter, r *http.Request) {
 func (pub *Publication) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
+func (pub *Publication) getRows(sess *dbr.Session, id string) (*publication.Publication, error) {
+	row := new(pubData)
+	pubStr := new(publication.Publication)
+	err := sess.Select(
+		"pub.title",
+		"pub.volume",
+		"pub.series_name",
+		"pub.issue",
+		"pub.pages",
+		"pub.uniquename",
+		"cvterm.name",
+		"pub.pubplace",
+		"pub.pyear",
+	).From("pub").Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+			),
+		).LoadStruct(&pubRow)
+	if err != nil {
+		return pubStr, nil
+	}
+	props, err := pub.getProps(sess, id)
+	if err != nil {
+		return pubStr, nil
+	}
+	for _, p := range props {
+		v := p.Value
+		switch p.Term {
+		case "doi":
+			pubStr.Doi = v
+		case "status":
+			pubStr.Status = v
+		case "month":
+			pubStr.Month = v
+		case "issn":
+			pubStr.Issn = v
+		case "abstract":
+			pubStr.Abstract = v
+		}
+	}
+	pubStr.ID = row.PubId
+	pubStr.Title = row.Ttile
+	pubStr.Journal = row.Journal
+	pubStr.Year = row.Year
+	pubStr.Volume = row.Volume.String
+	pubStr.Pages = row.Pages.String
+	pubStr.PubType = row.PubType
+	pubStr.Source = row.Source
+	pubStr.Issue = row.Issue.String
+	return pubStr, nil
+}
+
 func (pub *Publication) getProps(sess *dbr.Session, id string) ([]*pubProp, error) {
 	var props []*pubProp
 	_, err := sess.Select(
@@ -221,6 +245,127 @@ func (pub *Publication) getProps(sess *dbr.Session, id string) ([]*pubProp, erro
 			),
 		).LoadStructs(&props)
 	return props, err
+}
+
+func (pub *Publication) getSelectedProps(terms []string, sess *dbr.Session, id string) ([]*pubProp, error) {
+	var props []*pubProp
+	_, err := sess.Select(
+		"pubprop.value",
+		"cvterm.name as term",
+	).From("pubprop").
+		Join("pub", dbr.Eq("pubprop.pub_id", "pub.pub_id")).
+		Join("cvterm", dbr.Eq("pubprop.type_id", "cvterm.type_id")).
+		Join("cv", dbr.Eq("cvterm.cv_id", "cv.cv_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+				dbr.Eq("cv.name", "pub_type"),
+				dbr.Expr("cvterm.name IN ?", terms),
+			),
+		).LoadStructs(&props)
+	return props, err
+}
+
+func (pub *Publication) getSelectedRows(f *query.Fields, sess *dbr.Session, id string) (*publication.Publication, error) {
+	var row PubData
+	var terms []string
+	pubStr := new(publication.Publication)
+	columns := []string{"pub.uniquename"}
+	for _, n := range f.GetAll() {
+		switch n {
+		case "title":
+			columns = append(columns, "pub.title")
+		case "volume":
+			columns = append(columns, "pub.volume")
+		case "journal":
+			columns = append(columns, "pub.series_name")
+		case "issue":
+			columns = append(columns, "pub.issue")
+		case "year":
+			columns = append(columns, "pub.pyear")
+		case "pages":
+			columns = append(columns, "pub.pages")
+		case "pub_type":
+			columns = append(columns, "cvterm.name")
+		case "source":
+			columns = append(columns, "pub.pubplace")
+		default:
+			terms = append(terms, n)
+		}
+	}
+	err := sess.Select(columns...).From("pub").Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+			),
+		).LoadStruct(&row)
+	if err != nil {
+		return pubStr, err
+	}
+	if len(terms) > 0 {
+		props, err := pub.getSelectedProps(terms, sess, id)
+		if err != nil {
+			return pubStr, err
+		}
+		for _, p := range props {
+			v := p.Value
+			switch p.Term {
+			case "doi":
+				pubStr.Doi = v
+			case "status":
+				pubStr.Status = v
+			case "month":
+				pubStr.Month = v
+			case "issn":
+				pubStr.Issn = v
+			case "abstract":
+				pubStr.Abstract = v
+			}
+		}
+	}
+	pubStr.ID = row.PubId
+	pubStr.Title = row.Ttile
+	pubStr.Journal = row.Journal
+	pubStr.Year = row.Year
+	pubStr.Volume = row.Volume.String
+	pubStr.Pages = row.Pages.String
+	pubStr.PubType = row.PubType
+	pubStr.Source = row.Source
+	pubStr.Issue = row.Issue.String
+	return pubStr, nil
+}
+
+func (pub *Publication) getSelectedAuthors(f *query.Fields, sess *dbr.Session, id string) ([]*publication.Author, error) {
+	authors := make([]*publication.Author, 0)
+	columns := []string{"pubauthor.pubauthor_id"}
+	for _, c := range f.GetAll() {
+		switch c {
+		case "last_name":
+			columns = append(columns, "pubauthor.surname")
+		case "given_names":
+			columns = append(columns, "pubauthor.givennames")
+		case "rank":
+			columns = append(columns, "pubauthor.rank")
+		default:
+			continue
+		}
+	}
+	_, err := sess.Select(
+		columns...,
+	).From("pubauthor").
+		Join("pub", dbr.Eq("pubauthor.pub_id", "pub.pub_id")).
+		Where(
+			dbr.And(
+				dbr.Eq("pub.uniquename", id),
+				dbr.Eq("pub.is_obsolete", "0"),
+			),
+		).LoadStructs(&authors)
+	if err != nil {
+		return authors, err
+	}
+	return authors, nil
 }
 
 func (pub *Publication) getAuthors(sess *dbr.Session, id string) ([]*publication.Author, error) {
@@ -242,6 +387,15 @@ func (pub *Publication) getAuthors(sess *dbr.Session, id string) ([]*publication
 		return authors, err
 	}
 	return authors, nil
+}
+
+func includeAuthors(p *query.Params) bool {
+	if p.HasIncludes && p.HasSparseFields {
+		if _, ok := p.SparseFields["authors"]; ok {
+			return false
+		}
+	}
+	return p.HasIncludes
 }
 
 type Author struct {
