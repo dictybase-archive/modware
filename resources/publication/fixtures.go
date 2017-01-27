@@ -35,3 +35,15 @@ var propTestData = []map[string]string{
 		"issn":     "1526-968X",
 	},
 }
+
+var authorColumns = []string{
+	"pubauthor_id",
+	"rank",
+	"surname",
+	"givenames",
+}
+
+var authorData = [][]string{
+	[]string{"23", "3", "Wardroper", "A"},
+	[]string{"12", "1", "Quail", "MA"},
+}
