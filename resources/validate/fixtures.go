@@ -1,7 +1,11 @@
 package validate
 
-import "fmt"
-import jsapi "github.com/dictyBase/apihelpers/aphjsonapi"
+import (
+	"fmt"
+
+	jsapi "github.com/dictyBase/apihelpers/aphjsonapi"
+	"github.com/manyminds/api2go/jsonapi"
+)
 
 type Permission struct {
 	ID          string `json:"-"`
@@ -27,13 +31,9 @@ func (r *Role) GetID() string {
 
 func (r *Role) GetSelfLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "users", Type: "users"},
-		jsapi.RelationShipLink{Name: "permissions", Type: "users"},
+		jsapi.RelationShipLink{Name: "users"},
+		jsapi.RelationShipLink{Name: "permissions"},
 	}
-}
-
-func (r *Role) ValidateSelfLinks() error {
-	return nil
 }
 
 func (r *Role) GetRelatedLinksInfo() []jsapi.RelationShipLink {
@@ -41,14 +41,9 @@ func (r *Role) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 		jsapi.RelationShipLink{
 			Name:           "users",
 			SuffixFragment: fmt.Sprintf("%s/%s/%s", "roles", r.GetID(), "consumers"),
-			Type:           "users",
 		},
-		jsapi.RelationShipLink{Name: "permissions", Type: "permissions"},
+		jsapi.RelationShipLink{Name: "permissions"},
 	}
-}
-
-func (r *Role) ValidateRelatedLinks() error {
-	return nil
 }
 
 type User struct {
@@ -64,17 +59,13 @@ func (u *User) GetID() string {
 
 func (u *User) GetSelfLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "roles", Type: "roles"},
+		jsapi.RelationShipLink{Name: "roles"},
 	}
-}
-
-func (u *User) ValidateSelfLinks() error {
-	return nil
 }
 
 func (u *User) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "roles", Type: "roles"},
+		jsapi.RelationShipLink{Name: "roles"},
 	}
 }
 
@@ -86,6 +77,27 @@ func (u *User) GetAttributeFields(name string) []string {
 	return attr
 }
 
-func (u *User) ValidateRelatedLinks() error {
-	return nil
+// GetReferences satisfies jsonapi.MarshalReferences interface
+func (u *User) GetReferences() []jsonapi.Reference {
+	return []jsonapi.Reference{
+		jsonapi.Reference{Type: "roles", Name: "roles"},
+	}
+}
+
+// GetReferencedStructs satisfies jsonapi.MarshalIncludedRelations interface
+func (u *User) GetReferencedStructs() []jsonapi.MarshalIdentifier {
+	var result []jsonapi.MarshalIdentifier
+	for _, r := range u.Roles {
+		result = append(result, r)
+	}
+	return result
+}
+
+// GetReferencedIDs satisfies jsonapi.MarshalLinkedRelations interface
+func (u *User) GetReferencedIDs() []jsonapi.ReferenceID {
+	var result []jsonapi.ReferenceID
+	for _, r := range u.Roles {
+		result = append(result, jsonapi.ReferenceID{Type: "roles", ID: r.ID, Name: "roles"})
+	}
+	return result
 }

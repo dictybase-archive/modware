@@ -70,7 +70,7 @@ func FieldsParam(p *query.Params, rs []jsapi.RelationShipLink, data interface{})
 				fmt.Sprintf("no relationship defined, cannot process resource %s in sparse field", ftype),
 			)
 		}
-		rname, err := jsvalidate.RelationshipResourceType(ftype, rs)
+		rname, err := jsvalidate.RelationshipResourceType(ftype, data)
 		if err != nil {
 			return apherror.ErrSparseFieldSets.New(err.Error())
 		}

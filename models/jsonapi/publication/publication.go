@@ -20,34 +20,25 @@ type Author struct {
 	PublictionIDs []string       `json:"-" db:"-"`
 }
 
+// GetID satisfies jsonapi.MarshalIdentifier interface
 func (a *Author) GetID() string {
 	return a.ID
 }
 
+// SetID satisfies jsonapi.UnMarshalIdentifier interface
 func (a *Author) SetID(id string) error {
 	a.ID = id
 	return nil
 }
 
+// GetRelatedLinksInfo satisfies jsapi.MarshalRelatedRelations interface
 func (a *Author) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{
-			Name: "publications",
-			Type: "publications",
-		},
+		jsapi.RelationShipLink{Name: "publications"},
 	}
 }
 
-func (a *Author) ValidateRelatedLinks() error {
-	validate = validator.New()
-	for _, v := range a.GetRelatedLinksInfo() {
-		if err := validate.Struct(v); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
+// GetReferencedStructs satisfies jsonapi.MarshalIncludedRelations interface
 func (a *Author) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(a.Publications) > 0 {
 		for _, pub := range a.Publications {
@@ -57,12 +48,38 @@ func (a *Author) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	return result
 }
 
+// GetReferences satisfies jsonapi.MarshalReferences interface
+func (a *Author) GetReferences() []jsonapi.Reference {
+	return []jsonapi.Reference{
+		jsonapi.Reference{Type: "publications", Name: "publications"},
+	}
+}
+
+// GetReferencedIDs satisfies jsonapi.MarshalLinkedRelations interface
+func (a *Author) GetReferencedIDs() []jsonapi.ReferenceID {
+	var result []jsonapi.ReferenceID
+	for _, p := range a.Publications {
+		result = append(result, jsonapi.ReferenceID{Type: "publications", ID: p.ID, Name: "publications"})
+	}
+	return result
+}
+
+// SetToManyReferenceIDs satisfies jsonapi.UnmarshalToManyRelations interface
 func (a *Author) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "publications" {
 		a.PublictionIDs = IDs
 		return nil
 	}
 	return fmt.Errorf("%s No such has many relationships", name)
+}
+
+// GetAttributeFields implements jsapi.RelationshipAttribute interface
+func (a *Author) GetAttributeFields(name string) []string {
+	var attr []string
+	if name == "publications" {
+		attr = append(attr, jsapi.GetAttributeFields(&Publication{})...)
+	}
+	return attr
 }
 
 type Publication struct {
@@ -84,31 +101,25 @@ type Publication struct {
 	AuthorIDs []string  `json:"-"`
 }
 
+// GetID satisfies jsonapi.MarshalIdentifier interface
 func (pub *Publication) GetID() string {
 	return pub.ID
 }
 
+// GetRelatedLinksInfo satisfies jsapi.MarshalRelatedRelations interface
 func (pub *Publication) GetRelatedLinksInfo() []jsapi.RelationShipLink {
 	return []jsapi.RelationShipLink{
-		jsapi.RelationShipLink{Name: "authors", Type: "authors"},
+		jsapi.RelationShipLink{Name: "authors"},
 	}
 }
 
-func (pub *Publication) ValidateRelatedLinks() error {
-	validate = validator.New()
-	for _, v := range pub.GetRelatedLinksInfo() {
-		if err := validate.Struct(v); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
+// SetID satisfies jsonapi.UnMarshalIdentifier interface
 func (pub *Publication) SetID(id string) error {
 	pub.ID = id
 	return nil
 }
 
+// GetReferencedStructs satisfies jsonapi.MarshalIncludedRelations interface
 func (pub *Publication) GetReferencedStructs() (result []jsonapi.MarshalIdentifier) {
 	if len(pub.Authors) > 0 {
 		for _, a := range pub.Authors {
@@ -118,6 +129,23 @@ func (pub *Publication) GetReferencedStructs() (result []jsonapi.MarshalIdentifi
 	return result
 }
 
+// GetReferences satisfies jsonapi.MarshalReferences interface
+func (pub *Publication) GetReferences() []jsonapi.Reference {
+	return []jsonapi.Reference{
+		jsonapi.Reference{Type: "authors", Name: "authors"},
+	}
+}
+
+// GetReferencedIDs satisfies jsonapi.MarshalLinkedRelations interface
+func (pub *Publication) GetReferencedIDs() []jsonapi.ReferenceID {
+	var result []jsonapi.ReferenceID
+	for _, a := range pub.Authors {
+		result = append(result, jsonapi.ReferenceID{Type: "authors", ID: a.ID, Name: "authors"})
+	}
+	return result
+}
+
+// SetToManyReferenceIDs satisfies jsonapi.UnmarshalToManyRelations interface
 func (pub *Publication) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "authors" {
 		pub.AuthorIDs = IDs
@@ -126,10 +154,11 @@ func (pub *Publication) SetToManyReferenceIDs(name string, IDs []string) error {
 	return fmt.Errorf("%s No such has many relationships", name)
 }
 
+// GetAttributeFields implements jsapi.RelationshipAttribute interface
 func (pub *Publication) GetAttributeFields(name string) []string {
 	var attr []string
 	if name == "authors" {
-		attr = jsapi.GetAttributeFields(&Author{})
+		attr = append(attr, jsapi.GetAttributeFields(&Author{})...)
 	}
 	return attr
 }
