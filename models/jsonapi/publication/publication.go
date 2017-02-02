@@ -13,9 +13,9 @@ var validate *validator.Validate
 
 type Author struct {
 	ID            string         `json:"-" db:"pubauthor_id"`
-	LastName      string         `json:"last_name" db:"surname"`
-	GivenNames    string         `json:"given_names" db:"givennames"`
-	Rank          int            `json:"rank" db:"rank"`
+	LastName      string         `json:"last_name,omitempty" db:"surname"`
+	GivenNames    string         `json:"given_names,omitempty" db:"givennames"`
+	Rank          int            `json:"rank,omitempty" db:"rank"`
 	Publications  []*Publication `json:"-" db:"-"`
 	PublictionIDs []string       `json:"-" db:"-"`
 }
@@ -85,18 +85,18 @@ func (a *Author) GetAttributeFields(name string) []string {
 type Publication struct {
 	ID        string    `json:"-"`
 	Doi       string    `json:"doi"`
-	Title     string    `json:"title"`
-	Abstract  string    `json:"abstract"`
-	Journal   string    `json:"journal"`
-	Year      string    `json:"year"`
-	Volume    string    `json:"volume"`
-	Pages     string    `json:"pages"`
-	Month     string    `json:"month"`
-	Issn      string    `json:"issn"`
-	Issue     string    `json:"issue"`
-	Source    string    `json:"source"`
-	PubType   string    `json:"pub_type"`
-	Status    string    `json:"status"`
+	Title     string    `json:"title,omitempty"`
+	Abstract  string    `json:"abstract,omitempty"`
+	Journal   string    `json:"journal,omitempty"`
+	Year      string    `json:"year,omitempty"`
+	Volume    string    `json:"volume,omitempty"`
+	Pages     string    `json:"pages,omitempty"`
+	Month     string    `json:"month,omitempty"`
+	Issn      string    `json:"issn,omitempty"`
+	Issue     string    `json:"issue,omitempty"`
+	Source    string    `json:"source,omitempty"`
+	PubType   string    `json:"pub_type,omitempty"`
+	Status    string    `json:"status,omitempty"`
 	Authors   []*Author `json:"-"`
 	AuthorIDs []string  `json:"-"`
 }
