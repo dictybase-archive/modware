@@ -26,6 +26,26 @@ var pubTestData = [][]string{
 	},
 }
 
+var selectPubCols = []string{
+	"uniquename",
+	"series_name",
+	"issue",
+	"pages",
+	"pubplace",
+	"pyear",
+}
+
+var selectpubTestData = [][]string{
+	[]string{
+		"99",
+		"Genesis",
+		"8",
+		"765-80",
+		"pubmed",
+		"2015",
+	},
+}
+
 var propTestData = []map[string]string{
 	map[string]string{
 		"doi":      "10.1002/dvg.22867",
@@ -36,11 +56,18 @@ var propTestData = []map[string]string{
 	},
 }
 
+var selectpropTestData = []map[string]string{
+	map[string]string{
+		"doi":   "10.1002/dvg.22867",
+		"month": "june",
+	},
+}
+
 var authorColumns = []string{
 	"pubauthor_id",
 	"rank",
 	"surname",
-	"givenames",
+	"givennames",
 }
 
 var authorData = [][]string{

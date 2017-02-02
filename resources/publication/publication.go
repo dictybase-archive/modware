@@ -1,6 +1,7 @@
 package publication
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/dictyBase/apihelpers/apherror"
@@ -44,14 +45,15 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 	//Validates all params
 	p, ok, err := validate.Params(r, &publication.Publication{})
 	if err != nil {
+		fmt.Println(err.Error())
 		apherror.JSONAPIError(w, err)
 		return
 	}
 	id := router.Params(r).ByName("id")
 	sess := pub.GetDbh().NewSession(nil)
 	pubStr := new(publication.Publication)
+	authors := make([]*publication.Author, 0)
 	if ok {
-		authors := make([]*publication.Author, 0)
 		switch {
 		case includeAuthors(p):
 			authors, err = pub.getAuthors(sess, id)
@@ -60,10 +62,12 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case p.HasSparseFields:
-			pubStr, err = pub.getSelectedRows(p.SparseFields["publications"], sess, id)
-			if err != nil {
-				apherror.DatabaseError(w, err)
-				return
+			if _, ok := p.SparseFields["publications"]; ok {
+				pubStr, err = pub.getSelectedRows(p.SparseFields["publications"], sess, id)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
 			}
 			if _, ok := p.SparseFields["authors"]; ok {
 				authors, err = pub.getSelectedAuthors(p.SparseFields["authors"], sess, id)
@@ -73,22 +77,17 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		if len(pubStr.ID) == 0 {
-			pubStr, err = pub.getRows(sess, id)
-			if err != nil {
-				apherror.DatabaseError(w, err)
-				return
-			}
-		}
-		if len(authors) > 0 {
-			pubStr.Author = authors
-		}
-	} else {
+	}
+	if len(pubStr.ID) == 0 {
+		fmt.Println("no sparse field")
 		pubStr, err = pub.getRows(sess, id)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
+	}
+	if len(authors) > 0 {
+		pubStr.Authors = authors
 	}
 	aphrender.Resource(pubStr, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
 }
@@ -193,13 +192,13 @@ func (pub *Publication) getRows(sess *dbr.Session, id string) (*publication.Publ
 				dbr.Eq("pub.uniquename", id),
 				dbr.Eq("pub.is_obsolete", "0"),
 			),
-		).LoadStruct(&pubRow)
+		).LoadStruct(row)
 	if err != nil {
-		return pubStr, nil
+		return pubStr, err
 	}
 	props, err := pub.getProps(sess, id)
 	if err != nil {
-		return pubStr, nil
+		return pubStr, err
 	}
 	for _, p := range props {
 		v := p.Value
@@ -217,7 +216,7 @@ func (pub *Publication) getRows(sess *dbr.Session, id string) (*publication.Publ
 		}
 	}
 	pubStr.ID = row.PubId
-	pubStr.Title = row.Ttile
+	pubStr.Title = row.Title
 	pubStr.Journal = row.Journal
 	pubStr.Year = row.Year
 	pubStr.Volume = row.Volume.String
@@ -268,8 +267,8 @@ func (pub *Publication) getSelectedProps(terms []string, sess *dbr.Session, id s
 }
 
 func (pub *Publication) getSelectedRows(f *query.Fields, sess *dbr.Session, id string) (*publication.Publication, error) {
-	var row PubData
-	var terms []string
+	terms := make([]string, 0)
+	row := new(pubData)
 	pubStr := new(publication.Publication)
 	columns := []string{"pub.uniquename"}
 	for _, n := range f.GetAll() {
@@ -300,7 +299,7 @@ func (pub *Publication) getSelectedRows(f *query.Fields, sess *dbr.Session, id s
 				dbr.Eq("pub.uniquename", id),
 				dbr.Eq("pub.is_obsolete", "0"),
 			),
-		).LoadStruct(&row)
+		).LoadStruct(row)
 	if err != nil {
 		return pubStr, err
 	}
@@ -326,7 +325,7 @@ func (pub *Publication) getSelectedRows(f *query.Fields, sess *dbr.Session, id s
 		}
 	}
 	pubStr.ID = row.PubId
-	pubStr.Title = row.Ttile
+	pubStr.Title = row.Title
 	pubStr.Journal = row.Journal
 	pubStr.Year = row.Year
 	pubStr.Volume = row.Volume.String
