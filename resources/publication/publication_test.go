@@ -251,3 +251,107 @@ func TestGetWithSparseField(t *testing.T) {
 		t.Fatalf("unmet expectation error %s\n", err)
 	}
 }
+
+func TestGetWithRelatedSparseField(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error %s during stub database connection\n", err)
+	}
+	defer db.Close()
+
+	pubMockRow := sqlmock.NewRows(selectPubCols)
+	pubMockRow.FromCSVString(strings.Join(selectpubTestData[0], ","))
+	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+)").
+		WillReturnRows(pubMockRow)
+
+	propMockRow := sqlmock.NewRows([]string{"value", "term"})
+	for k, v := range selectpropTestData[0] {
+		propMockRow.AddRow(v, k)
+	}
+	mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
+		WillReturnRows(propMockRow)
+
+	authorMockRow := sqlmock.NewRows(selectauthorColumns)
+	for _, d := range selectauthorData {
+		authorMockRow.AddRow(d[0], d[1])
+	}
+	mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
+
+	// create the app instance with mock db
+	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
+	spf := []string{
+		"journal",
+		"issue",
+		"pages",
+		"source",
+		"year",
+		"doi",
+		"month",
+	}
+	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
+		Get(fmt.Sprintf("/publications/%s", mwtest.PubID)).
+		AddRouterParam("id", mwtest.PubID).
+		AddIncludes("authors").
+		AddFieldSets("publications", false, spf...).
+		AddFieldSets("authors", true, "rank").
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+	assert := assert.New(t)
+	if assert.True(cont.Exists("links", "self"), "should have link member") {
+		value, _ := cont.Path("links.self").Data().(string)
+		assert.Equal(
+			value, fmt.Sprintf(
+				"%s/publications/%s",
+				mwtest.APIServer(),
+				mwtest.PubID,
+			),
+			"should match the top level link",
+		)
+	}
+	if assert.True(cont.Exists("data", "type"), "should have type member") {
+		value, _ := cont.Path("data.type").Data().(string)
+		assert.Equal(value, "publications", "should match the type value")
+	}
+	if assert.True(cont.Exists("data", "id"), "should have ID member") {
+		value, _ := cont.Path("data.id").Data().(string)
+		assert.Equal(value, "99", "should match the id value")
+	}
+	for _, f := range spf {
+		assert.True(
+			cont.Exists(
+				"data",
+				"attributes",
+				f,
+			), fmt.Sprintf("should have %s fields", f),
+		)
+	}
+	for _, f := range []string{"title", "abstract", "status"} {
+		assert.False(cont.Exists("data", "attributes", f), fmt.Sprintf("should not have %s field", f))
+
+	}
+	if assert.True(cont.Exists("data", "relationships", "authors", "links", "related")) {
+		value, _ := cont.Path("data.relationships.authors.links.related").Data().(string)
+		assert.Equal(
+			value,
+			fmt.Sprintf("%s/%s", mwtest.APIServer(), "publications/99/authors"),
+			"should match the related links of authors relationships",
+		)
+	}
+	includes, _ := cont.S("included").Children()
+	assert.Equal(len(includes), 2, "should have two includes")
+	for _, m := range includes {
+		for _, f := range []string{"type", "id", "attributes", "relationships"} {
+			assert.True(m.Exists(f), fmt.Sprintf("include resource should have %s field", f))
+		}
+		tval, _ := m.Path("type").Data().(string)
+		assert.Equal(tval, "authors", "should be authors type")
+		assert.True(
+			m.Exists("relationships", "publications", "links", "related"),
+			"include resource should have publications link field",
+		)
+	}
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
