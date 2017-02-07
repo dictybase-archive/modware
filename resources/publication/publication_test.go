@@ -355,3 +355,47 @@ func TestGetWithRelatedSparseField(t *testing.T) {
 		t.Fatalf("unmet expectation error %s\n", err)
 	}
 }
+
+func TestGetAll(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error %s during stub database connection\n", err)
+	}
+	defer db.Close()
+	countMockRow := sqlmock.NewRows([]string{"records"})
+	countMockRow.AddRow("7")
+	mock.ExpectQuery("SELECT (.+) FROM pub").
+		WillReturnRows(countMockRow)
+
+	pubMockRow := sqlmock.NewRows(pubColumns)
+	for _, v := range getPubTestDataRows() {
+		pubMockRow.FromCSVString(strings.Join(v, ","))
+	}
+	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+) LIMIT 3 OFFSET 3").
+		WillReturnRows(pubMockRow)
+
+	for _, r := range getPropsTestDataRows() {
+		propMockRow := sqlmock.NewRows([]string{"value", "term"})
+		for k, v := range r {
+			propMockRow.AddRow(v, k)
+		}
+		mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
+			WillReturnRows(propMockRow)
+	}
+
+	// create the app instance with mock db
+	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
+	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
+		GetAll("/publications").
+		AddPagination(2, 3).
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+	assert := assert.New(t)
+	members, _ := cont.S("data").Children()
+	assert.Equal(len(members), 3, "should have 3 members")
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
