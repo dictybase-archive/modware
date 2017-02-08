@@ -397,7 +397,6 @@ func TestGetAll(t *testing.T) {
 		Expect().
 		Status(http.StatusOK).
 		JSON()
-	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
 
 	assert := assert.New(t)
 	// tests the members
@@ -407,7 +406,6 @@ func TestGetAll(t *testing.T) {
 		testMembers(assert, members[i], v)
 	}
 
-	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
 	// test the meta section
 	if assert.True(cont.Exists("meta", "pagination")) {
 		num, _ := cont.Path("meta.pagination.number").Data().(float64)
@@ -419,10 +417,35 @@ func TestGetAll(t *testing.T) {
 		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
 		assert.Equal(7, int(rec), "should match the total records")
 	}
+	// test the pagination links
+	if assert.True(cont.Exists("links")) {
+		fmap := map[string]int{
+			"first": 1,
+			"last":  3,
+			"next":  3,
+			"prev":  1,
+			"self":  2,
+		}
+		lnk := cont.Path("links")
+		for k, v := range fmap {
+			testPageLink(assert, lnk, k, v, 3)
+		}
+	}
 	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
 
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
+
+func testPageLink(assert *assert.Assertions, cont *gabs.Container, field string, pageNum, pageSize int) {
+	if assert.True(cont.Exists(field), fmt.Sprintf("should have %s page field", field)) {
+		value, _ := cont.Path(field).Data().(string)
+		assert.Equal(
+			value,
+			fmt.Sprintf("%s/publications?page[number]=%d&page[size]=%d", mwtest.APIServer(), pageNum, pageSize),
+			fmt.Sprintf("should match url %s page field", field),
+		)
 	}
 }
 
