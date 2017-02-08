@@ -92,21 +92,71 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
+	//Validates all params
+	p, ok, err := validate.Params(r, &publication.Publication{})
+	if err != nil {
+		fmt.Println(err.Error())
+		apherror.JSONAPIError(w, err)
+		return
+	}
 	pageProps := resources.GetPaginationProp(r)
 	// Get the total no of publications
 	sess := pub.GetDbh().NewSession(nil)
 	var count int
-	err := sess.Select("count(pub_id) as records").From("pub").LoadValue(&count)
+	err = sess.Select("count(pub_id) as records").From("pub").LoadValue(&count)
 	if err != nil {
 		apherror.DatabaseError(w, err)
 		return
 	}
 	pageProps.Records = count
-	// Now get a list of publications within that page range
-	pubSlice, err := pub.getAllRows(sess, pageProps)
-	if err != nil {
-		apherror.DatabaseError(w, err)
-		return
+	pubSlice := make([]*publication.Publication, 0)
+	if ok {
+		switch {
+		case p.HasSparseFields:
+			if _, ok := p.SparseFields["publications"]; ok {
+				pubSlice, err = pub.getAllSelectedRows(p.SparseFields["publications"], sess, pageProps)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+			}
+			if _, ok := p.SparseFields["authors"]; ok {
+				if len(pubSlice) == 0 {
+					pubSlice, err = pub.getAllRows(sess, pageProps)
+					if err != nil {
+						apherror.DatabaseError(w, err)
+						return
+					}
+				}
+				for _, ps := range pubSlice {
+					authors, err := pub.getSelectedAuthors(p.SparseFields["authors"], sess, ps.ID)
+					if err != nil {
+						apherror.DatabaseError(w, err)
+						return
+					}
+					if len(authors) > 0 {
+						ps.Authors = authors
+					}
+				}
+			}
+		case includeAuthors(p):
+			for _, ps := range pubSlice {
+				authors, err := pub.getAuthors(sess, ps.ID)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+				if len(authors) > 0 {
+					ps.Authors = authors
+				}
+			}
+		}
+	} else {
+		pubSlice, err = pub.getAllRows(sess, pageProps)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
 	}
 	aphrender.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 }
@@ -270,6 +320,80 @@ func (pub *Publication) getSelectedProps(terms []string, sess *dbr.Session, id s
 			),
 		).LoadStructs(&props)
 	return props, err
+}
+
+func (pub *Publication) getAllSelectedRows(f *query.Fields, sess *dbr.Session, pageProps *pagination.Props) ([]*publication.Publication, error) {
+	terms := make([]string, 0)
+	pubRows := make([]*pubData, 0)
+	pubSlice := make([]*publication.Publication, 0)
+	columns := []string{"pub.uniquename"}
+	for _, n := range f.GetAll() {
+		switch n {
+		case "title":
+			columns = append(columns, "pub.title")
+		case "volume":
+			columns = append(columns, "pub.volume")
+		case "journal":
+			columns = append(columns, "pub.series_name")
+		case "issue":
+			columns = append(columns, "pub.issue")
+		case "year":
+			columns = append(columns, "pub.pyear")
+		case "pages":
+			columns = append(columns, "pub.pages")
+		case "pub_type":
+			columns = append(columns, "cvterm.name")
+		case "source":
+			columns = append(columns, "pub.pubplace")
+		default:
+			terms = append(terms, n)
+		}
+	}
+	err := sess.Select(columns...).From("pub").
+		Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(dbr.Eq("pub.is_obsolete", "0")).
+		Paginate(uint64(pageProps.Current), uint64(pageProps.Entries)).
+		LoadStruct(&pubRows)
+	if err != nil {
+		return pubSlice, err
+	}
+
+	if len(terms) > 0 {
+		for _, pb := range pubRows {
+			props, err := pub.getSelectedProps(terms, sess, pb.PubId)
+			if err != nil {
+				return pubSlice, err
+			}
+			pubj := &publication.Publication{
+				ID:      pb.PubId,
+				Title:   pb.Title,
+				Journal: pb.Journal,
+				Year:    pb.Year,
+				Volume:  pb.Volume.String,
+				Pages:   pb.Pages.String,
+				PubType: pb.PubType,
+				Source:  pb.Source,
+				Issue:   pb.Issue.String,
+			}
+			for _, p := range props {
+				v := p.Value
+				switch p.Term {
+				case "doi":
+					pubj.Doi = v
+				case "status":
+					pubj.Status = v
+				case "month":
+					pubj.Month = v
+				case "issn":
+					pubj.Issn = v
+				case "abstract":
+					pubj.Abstract = v
+				}
+			}
+			pubSlice = append(pubSlice, pubj)
+		}
+	}
+	return pubSlice, nil
 }
 
 func (pub *Publication) getSelectedRows(f *query.Fields, sess *dbr.Session, id string) (*publication.Publication, error) {
