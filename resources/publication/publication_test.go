@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jeffail/gabs"
 	mwtest "github.com/dictyBase/apihelpers/aphtest"
 	"github.com/gocraft/dbr"
 	"github.com/gocraft/dbr/dialect"
@@ -362,6 +363,8 @@ func TestGetAll(t *testing.T) {
 		t.Fatalf("unexpected error %s during stub database connection\n", err)
 	}
 	defer db.Close()
+
+	// mock the sql backend with test data
 	countMockRow := sqlmock.NewRows([]string{"records"})
 	countMockRow.AddRow("7")
 	mock.ExpectQuery("SELECT (.+) FROM pub").
@@ -385,17 +388,63 @@ func TestGetAll(t *testing.T) {
 
 	// create the app instance with mock db
 	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
+	// run the http request
+	pageNum := 2
+	pageSize := 3
 	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
 		GetAll("/publications").
-		AddPagination(2, 3).
+		AddPagination(pageNum, pageSize).
 		Expect().
 		Status(http.StatusOK).
 		JSON()
 	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+
 	assert := assert.New(t)
+	// tests the members
 	members, _ := cont.S("data").Children()
 	assert.Equal(len(members), 3, "should have 3 members")
+	for i, v := range []string{"10", "11", "12"} {
+		testMembers(assert, members[i], v)
+	}
+
+	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+	// test the meta section
+	if assert.True(cont.Exists("meta", "pagination")) {
+		num, _ := cont.Path("meta.pagination.number").Data().(float64)
+		assert.Equal(pageNum, int(num), "should match the current page number")
+		size, _ := cont.Path("meta.pagination.size").Data().(float64)
+		assert.Equal(pageSize, int(size), "should match the page size")
+		last, _ := cont.Path("meta.pagination.total").Data().(float64)
+		assert.Equal(3, int(last), "should match the last page")
+		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
+		assert.Equal(7, int(rec), "should match the total records")
+	}
+	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
+
+func testMembers(assert *assert.Assertions, cont *gabs.Container, id string) {
+	if assert.True(cont.Exists("type"), "should have type member") {
+		value, _ := cont.Path("type").Data().(string)
+		assert.Equal(value, "publications", "should match the type value")
+	}
+	if assert.True(cont.Exists("id"), "should have ID member") {
+		value, _ := cont.Path("id").Data().(string)
+		assert.Equal(value, id, "should match the id value")
+	}
+	if assert.True(cont.Exists("attributes", "source")) {
+		value, _ := cont.Path("attributes.source").Data().(string)
+		assert.Equal(value, "pubmed", "should match the source value")
+	}
+	if assert.True(cont.Exists("relationships", "authors", "links", "related")) {
+		value, _ := cont.Path("relationships.authors.links.related").Data().(string)
+		assert.Equal(
+			value,
+			fmt.Sprintf("%s/publications/%s/authors", mwtest.APIServer(), id),
+			"should match the related links of authors relationships",
+		)
 	}
 }
