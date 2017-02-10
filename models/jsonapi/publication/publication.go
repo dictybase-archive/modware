@@ -3,13 +3,9 @@ package publication
 import (
 	"fmt"
 
-	"gopkg.in/go-playground/validator.v9"
-
 	jsapi "github.com/dictyBase/apihelpers/aphjsonapi"
 	"github.com/manyminds/api2go/jsonapi"
 )
-
-var validate *validator.Validate
 
 type Author struct {
 	ID            string         `json:"-" db:"pubauthor_id"`
@@ -85,7 +81,7 @@ func (a *Author) GetAttributeFields(name string) []string {
 type Publication struct {
 	ID        string    `json:"-"`
 	Doi       string    `json:"doi"`
-	Title     string    `json:"title,omitempty"`
+	Title     string    `json:"title,omitempty" filter:"-"`
 	Abstract  string    `json:"abstract,omitempty"`
 	Journal   string    `json:"journal,omitempty"`
 	Year      string    `json:"year,omitempty"`
@@ -161,4 +157,9 @@ func (pub *Publication) GetAttributeFields(name string) []string {
 		attr = append(attr, jsapi.GetAttributeFields(&Author{})...)
 	}
 	return attr
+}
+
+// GetMap implements jsapi.AttributeToDbRowMapper interface
+func (pub *Publication) GetMap() map[string]string {
+	return map[string]string{"title": "title"}
 }
