@@ -101,3 +101,11 @@ func (u *User) GetReferencedIDs() []jsonapi.ReferenceID {
 	}
 	return result
 }
+
+// GetMap satisfies AttributeToDbRowMapper interface
+func (u *User) GetMap() map[string]string {
+	return map[string]string{
+		"name":  "name",
+		"email": "email",
+	}
+}
