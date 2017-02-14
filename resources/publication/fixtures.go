@@ -1,5 +1,7 @@
 package publication
 
+import "strconv"
+
 var pubColumns = []string{
 	"title",
 	"volume",
@@ -24,6 +26,17 @@ var pubTestData = [][]string{
 		"pubmed",
 		"2015",
 	},
+}
+
+func getPubTestDataRows() [][]string {
+	var testData [][]string
+	for i := 10; i <= 12; i++ {
+		rowData := make([]string, len(pubTestData[0]))
+		_ = copy(rowData, pubTestData[0])
+		rowData[5] = strconv.Itoa(i)
+		testData = append(testData, rowData)
+	}
+	return testData
 }
 
 var selectPubCols = []string{
@@ -56,6 +69,15 @@ var propTestData = []map[string]string{
 	},
 }
 
+func getPropsTestDataRows() []map[string]string {
+	num := len(getPubTestDataRows())
+	testData := make([]map[string]string, num)
+	for i := 0; i < num; i++ {
+		testData[i] = propTestData[0]
+	}
+	return testData
+}
+
 var selectpropTestData = []map[string]string{
 	map[string]string{
 		"doi":   "10.1002/dvg.22867",
@@ -70,7 +92,17 @@ var authorColumns = []string{
 	"givennames",
 }
 
+var selectauthorColumns = []string{
+	"pubauthor_id",
+	"rank",
+}
+
 var authorData = [][]string{
 	[]string{"23", "3", "Wardroper", "A"},
 	[]string{"12", "1", "Quail", "MA"},
+}
+
+var selectauthorData = [][]string{
+	[]string{"23", "3"},
+	[]string{"12", "1"},
 }
