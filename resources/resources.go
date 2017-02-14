@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/dictyBase/go-middlewares/middlewares/pagination"
+	"github.com/dictyBase/go-middlewares/middlewares/query"
 	"github.com/gocraft/dbr"
 	"github.com/manyminds/api2go/jsonapi"
 )
@@ -71,4 +72,18 @@ func GetPaginationProp(r *http.Request) *pagination.Props {
 		return prop
 	}
 	return &pagination.Props{Entries: pagination.DefaultEntries, Current: 1}
+}
+
+// BuildFilterQuery builds query from filter parameters
+func BuildFilterQuery(rowmap map[string]string, p *query.Params) []dbr.Builder {
+	builders := make([]dbr.Builder, len(p.Filters)+1)
+	i := 1
+	for k, v := range p.Filters {
+		builders[i] = dbr.Expr(
+			fmt.Sprintf("%s ILIKE ?", rowmap[k]),
+			fmt.Sprintf("%%%s%%", v),
+		)
+		i = i + 1
+	}
+	return builders
 }

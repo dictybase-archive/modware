@@ -102,46 +102,59 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 	pageProps := resources.GetPaginationProp(r)
 	// Get the total no of publications
 	sess := pub.GetDbh().NewSession(nil)
-	var count int
-	err = sess.Select("count(pub_id) as records").From("pub").LoadValue(&count)
-	if err != nil {
-		apherror.DatabaseError(w, err)
+	pubSlice := make([]*publication.Publication, 0)
+	// Without any query params
+	if !ok {
+		count, err := pub.getCount(sess)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		pubSlice, err = pub.getAllRows(sess, pageProps)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		pageProps.Records = count
+		aphrender.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 		return
 	}
-	pageProps.Records = count
-	pubSlice := make([]*publication.Publication, 0)
-	if ok {
-		switch {
-		case p.HasSparseFields:
-			if _, ok := p.SparseFields["publications"]; ok {
-				pubSlice, err = pub.getAllSelectedRows(p.SparseFields["publications"], sess, pageProps)
+	switch { // Various combinations of query parameters
+	case p.HasFilters && p.HasSparseFields:
+		if _, ok := p.SparseFields["publications"]; ok {
+			count, err := pub.getFilteredCount(p, sess)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+			pubSlice, err = pub.getAllSelectFilteredRows(
+				p,
+				p.SparseFields["publications"],
+				sess,
+				pageProps,
+			)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+			pageProps.Records = count
+		}
+		if _, ok := p.SparseFields["authors"]; ok {
+			if len(pubSlice) == 0 {
+				count, err := pub.getCount(sess)
 				if err != nil {
 					apherror.DatabaseError(w, err)
 					return
 				}
-			}
-			if _, ok := p.SparseFields["authors"]; ok {
-				if len(pubSlice) == 0 {
-					pubSlice, err = pub.getAllRows(sess, pageProps)
-					if err != nil {
-						apherror.DatabaseError(w, err)
-						return
-					}
+				pubSlice, err = pub.getAllRows(sess, pageProps)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
 				}
-				for _, ps := range pubSlice {
-					authors, err := pub.getSelectedAuthors(p.SparseFields["authors"], sess, ps.ID)
-					if err != nil {
-						apherror.DatabaseError(w, err)
-						return
-					}
-					if len(authors) > 0 {
-						ps.Authors = authors
-					}
-				}
+				pageProps.Records = count
 			}
-		case includeAuthors(p):
 			for _, ps := range pubSlice {
-				authors, err := pub.getAuthors(sess, ps.ID)
+				authors, err := pub.getSelectedAuthors(p.SparseFields["authors"], sess, ps.ID)
 				if err != nil {
 					apherror.DatabaseError(w, err)
 					return
@@ -151,12 +164,68 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	} else {
-		pubSlice, err = pub.getAllRows(sess, pageProps)
+	case p.HasFilters:
+		count, err := pub.getFilteredCount(p, sess)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
+		pubSlice, err = pub.getAllFilteredRows(p, sess, pageProps)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		pageProps.Records = count
+	case p.HasSparseFields:
+		count, err := pub.getCount(sess)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		if _, ok := p.SparseFields["publications"]; ok {
+			pubSlice, err = pub.getAllSelectedRows(p.SparseFields["publications"], sess, pageProps)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+		}
+		if _, ok := p.SparseFields["authors"]; ok {
+			if len(pubSlice) == 0 {
+				pubSlice, err = pub.getAllRows(sess, pageProps)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+			}
+			for _, ps := range pubSlice {
+				authors, err := pub.getSelectedAuthors(p.SparseFields["authors"], sess, ps.ID)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+				if len(authors) > 0 {
+					ps.Authors = authors
+				}
+			}
+		}
+		pageProps.Records = count
+	case includeAuthors(p):
+		count, err := pub.getCount(sess)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		for _, ps := range pubSlice {
+			authors, err := pub.getAuthors(sess, ps.ID)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+			if len(authors) > 0 {
+				ps.Authors = authors
+			}
+		}
+		pageProps.Records = count
 	}
 	aphrender.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 }
@@ -224,6 +293,160 @@ func (pub *Publication) getRows(sess *dbr.Session, id string) (*publication.Publ
 	pubStr.Source = row.Source
 	pubStr.Issue = row.Issue.String
 	return pubStr, nil
+}
+
+func (pub *Publication) getCount(sess *dbr.Session) (int, error) {
+	var count int
+	err := sess.Select("count(pub_id) as records").From("pub").LoadValue(&count)
+	return count, err
+}
+
+func (pub *Publication) getFilteredCount(p *query.Params, sess *dbr.Session) (int, error) {
+	rmap := new(publication.Publication).GetMap()
+	builders := resources.BuildFilterQuery(rmap, p)
+	builders = append(builders, dbr.Eq("pub.is_obsolete", "0"))
+	var count int
+	err := sess.Select("count(pub_id) as records").
+		From("pub").
+		Where(dbr.And(builders...)).
+		LoadValue(&count)
+	return count, err
+}
+
+func (pub *Publication) getAllSelectFilteredRows(p *query.Params, f *query.Fields, sess *dbr.Session, pageProps *pagination.Props) ([]*publication.Publication, error) {
+	rmap := new(publication.Publication).GetMap()
+	builders := resources.BuildFilterQuery(rmap, p)
+	builders = append(builders, dbr.Eq("pub.is_obsolete", "0"))
+	pubRows := make([]*pubData, 0)
+	pubSlice := make([]*publication.Publication, 0)
+	columns := []string{"pub.uniquename"}
+	terms := make([]string, 0)
+	for _, n := range f.GetAll() {
+		switch n {
+		case "title":
+			columns = append(columns, "pub.title")
+		case "volume":
+			columns = append(columns, "pub.volume")
+		case "journal":
+			columns = append(columns, "pub.series_name")
+		case "issue":
+			columns = append(columns, "pub.issue")
+		case "year":
+			columns = append(columns, "pub.pyear")
+		case "pages":
+			columns = append(columns, "pub.pages")
+		case "pub_type":
+			columns = append(columns, "cvterm.name")
+		case "source":
+			columns = append(columns, "pub.pubplace")
+		default:
+			terms = append(terms, n)
+		}
+	}
+	err := sess.Select(columns...).From("pub").
+		Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(dbr.And(builders...)).
+		Paginate(uint64(pageProps.Current), uint64(pageProps.Entries)).
+		LoadStruct(&pubRows)
+	if err != nil {
+		return pubSlice, err
+	}
+	if len(terms) > 0 {
+		for _, pb := range pubRows {
+			props, err := pub.getSelectedProps(terms, sess, pb.PubId)
+			if err != nil {
+				return pubSlice, err
+			}
+			pubj := &publication.Publication{
+				ID:      pb.PubId,
+				Title:   pb.Title,
+				Journal: pb.Journal,
+				Year:    pb.Year,
+				Volume:  pb.Volume.String,
+				Pages:   pb.Pages.String,
+				PubType: pb.PubType,
+				Source:  pb.Source,
+				Issue:   pb.Issue.String,
+			}
+			for _, p := range props {
+				v := p.Value
+				switch p.Term {
+				case "doi":
+					pubj.Doi = v
+				case "status":
+					pubj.Status = v
+				case "month":
+					pubj.Month = v
+				case "issn":
+					pubj.Issn = v
+				case "abstract":
+					pubj.Abstract = v
+				}
+			}
+			pubSlice = append(pubSlice, pubj)
+		}
+	}
+	return pubSlice, nil
+}
+
+func (pub *Publication) getAllFilteredRows(p *query.Params, sess *dbr.Session, pageProps *pagination.Props) ([]*publication.Publication, error) {
+	rmap := new(publication.Publication).GetMap()
+	builders := resources.BuildFilterQuery(rmap, p)
+	builders = append(builders, dbr.Eq("pub.is_obsolete", "0"))
+	pubRows := make([]*pubData, 0)
+	pubSlice := make([]*publication.Publication, 0)
+	err := sess.Select(
+		"pub.title",
+		"pub.volume",
+		"pub.series_name",
+		"pub.issue",
+		"pub.pages",
+		"pub.uniquename",
+		"cvterm.name",
+		"pub.pubplace",
+		"pub.pyear",
+	).From("pub").
+		Join("cvterm", dbr.Eq("pub.type_id", "cvterm.cvterm_id")).
+		Where(dbr.And(builders...)).
+		Paginate(uint64(pageProps.Current), uint64(pageProps.Entries)).
+		LoadStruct(&pubRows)
+	if err != nil {
+		return pubSlice, err
+	}
+	for _, pb := range pubRows {
+		props, err := pub.getProps(sess, pb.PubId)
+		if err != nil {
+			return pubSlice, err
+		}
+		pubj := &publication.Publication{
+			ID:      pb.PubId,
+			Title:   pb.Title,
+			Journal: pb.Journal,
+			Year:    pb.Year,
+			Volume:  pb.Volume.String,
+			Pages:   pb.Pages.String,
+			PubType: pb.PubType,
+			Source:  pb.Source,
+			Issue:   pb.Issue.String,
+		}
+		for _, p := range props {
+			v := p.Value
+			switch p.Term {
+			case "doi":
+				pubj.Doi = v
+			case "status":
+				pubj.Status = v
+			case "month":
+				pubj.Month = v
+			case "issn":
+				pubj.Issn = v
+			case "abstract":
+				pubj.Abstract = v
+			}
+		}
+		pubSlice = append(pubSlice, pubj)
+	}
+	return pubSlice, nil
 }
 
 func (pub *Publication) getAllRows(sess *dbr.Session, pageProps *pagination.Props) ([]*publication.Publication, error) {
@@ -357,7 +580,6 @@ func (pub *Publication) getAllSelectedRows(f *query.Fields, sess *dbr.Session, p
 	if err != nil {
 		return pubSlice, err
 	}
-
 	if len(terms) > 0 {
 		for _, pb := range pubRows {
 			props, err := pub.getSelectedProps(terms, sess, pb.PubId)
