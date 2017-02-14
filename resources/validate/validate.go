@@ -112,5 +112,11 @@ func FilterParam(p *query.Params, data interface{}) error {
 			)
 		}
 	}
+	_, ok := data.(jsapi.AttributeToDbRowMapper)
+	if !ok {
+		return apherror.ErrFilterParam.New(
+			"No mapping between attribute and database row is provided for this resource",
+		)
+	}
 	return nil
 }
