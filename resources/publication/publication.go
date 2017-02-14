@@ -127,6 +127,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				apherror.DatabaseError(w, err)
 				return
 			}
+			pageProps.Records = count
 			pubSlice, err = pub.getAllSelectFilteredRows(
 				p,
 				p.SparseFields["publications"],
@@ -137,7 +138,6 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				apherror.DatabaseError(w, err)
 				return
 			}
-			pageProps.Records = count
 		}
 		if _, ok := p.SparseFields["authors"]; ok {
 			if len(pubSlice) == 0 {
@@ -146,12 +146,12 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 					apherror.DatabaseError(w, err)
 					return
 				}
+				pageProps.Records = count
 				pubSlice, err = pub.getAllRows(sess, pageProps)
 				if err != nil {
 					apherror.DatabaseError(w, err)
 					return
 				}
-				pageProps.Records = count
 			}
 			for _, ps := range pubSlice {
 				authors, err := pub.getSelectedAuthors(p.SparseFields["authors"], sess, ps.ID)
@@ -170,18 +170,19 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 			apherror.DatabaseError(w, err)
 			return
 		}
+		pageProps.Records = count
 		pubSlice, err = pub.getAllFilteredRows(p, sess, pageProps)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-		pageProps.Records = count
 	case p.HasSparseFields:
 		count, err := pub.getCount(sess)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
+		pageProps.Records = count
 		if _, ok := p.SparseFields["publications"]; ok {
 			pubSlice, err = pub.getAllSelectedRows(p.SparseFields["publications"], sess, pageProps)
 			if err != nil {
@@ -191,6 +192,12 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, ok := p.SparseFields["authors"]; ok {
 			if len(pubSlice) == 0 {
+				count, err := pub.getCount(sess)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+				pageProps.Records = count
 				pubSlice, err = pub.getAllRows(sess, pageProps)
 				if err != nil {
 					apherror.DatabaseError(w, err)
@@ -208,9 +215,14 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		pageProps.Records = count
 	case includeAuthors(p):
 		count, err := pub.getCount(sess)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		pageProps.Records = count
+		pubSlice, err = pub.getAllRows(sess, pageProps)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
@@ -225,7 +237,6 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				ps.Authors = authors
 			}
 		}
-		pageProps.Records = count
 	}
 	aphrender.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 }
