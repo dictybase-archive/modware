@@ -110,12 +110,12 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 			apherror.DatabaseError(w, err)
 			return
 		}
+		SetPagination(count, pageProps)
 		pubSlice, err = pub.getAllRows(sess, pageProps)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-		pageProps.Records = count
 		aphrender.ResourceCollection(pubSlice, resources.GetAPIServerInfo(r, pub.PathPrefix), w, pageProps)
 		return
 	}
@@ -127,7 +127,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 				apherror.DatabaseError(w, err)
 				return
 			}
-			pageProps.Records = count
+			SetPagination(count, pageProps)
 			pubSlice, err = pub.getAllSelectFilteredRows(
 				p,
 				p.SparseFields["publications"],
@@ -146,7 +146,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 					apherror.DatabaseError(w, err)
 					return
 				}
-				pageProps.Records = count
+				SetPagination(count, pageProps)
 				pubSlice, err = pub.getAllRows(sess, pageProps)
 				if err != nil {
 					apherror.DatabaseError(w, err)
@@ -163,26 +163,51 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 					ps.Authors = authors
 				}
 			}
+		} else {
+			if p.HasIncludes { // only author includes
+				for _, ps := range pubSlice {
+					authors, err := pub.getAuthors(sess, ps.ID)
+					if err != nil {
+						apherror.DatabaseError(w, err)
+						return
+					}
+					if len(authors) > 0 {
+						ps.Authors = authors
+					}
+				}
+			}
 		}
-	case p.HasFilters:
+	case p.HasFilters: // /publications?filter[title]=something
 		count, err := pub.getFilteredCount(p, sess)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-		pageProps.Records = count
+		SetPagination(count, pageProps)
 		pubSlice, err = pub.getAllFilteredRows(p, sess, pageProps)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-	case p.HasSparseFields:
+		if p.HasIncludes { // /publications?filter[title]=something&include=authors
+			for _, ps := range pubSlice {
+				authors, err := pub.getAuthors(sess, ps.ID)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+				if len(authors) > 0 {
+					ps.Authors = authors
+				}
+			}
+		}
+	case p.HasSparseFields: // /publications?fields[publications]=title,doi,year&fields[authors]=rank&include=authors
 		count, err := pub.getCount(sess)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-		pageProps.Records = count
+		SetPagination(count, pageProps)
 		if _, ok := p.SparseFields["publications"]; ok {
 			pubSlice, err = pub.getAllSelectedRows(p.SparseFields["publications"], sess, pageProps)
 			if err != nil {
@@ -197,7 +222,7 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 					apherror.DatabaseError(w, err)
 					return
 				}
-				pageProps.Records = count
+				SetPagination(count, pageProps)
 				pubSlice, err = pub.getAllRows(sess, pageProps)
 				if err != nil {
 					apherror.DatabaseError(w, err)
@@ -214,14 +239,27 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 					ps.Authors = authors
 				}
 			}
+		} else {
+			if p.HasIncludes { // /publications?fields[publications]=title,doi,year&include=authors
+				for _, ps := range pubSlice {
+					authors, err := pub.getAuthors(sess, ps.ID)
+					if err != nil {
+						apherror.DatabaseError(w, err)
+						return
+					}
+					if len(authors) > 0 {
+						ps.Authors = authors
+					}
+				}
+			}
 		}
-	case includeAuthors(p):
+	default:
 		count, err := pub.getCount(sess)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
-		pageProps.Records = count
+		SetPagination(count, pageProps)
 		pubSlice, err = pub.getAllRows(sess, pageProps)
 		if err != nil {
 			apherror.DatabaseError(w, err)
@@ -314,20 +352,23 @@ func (pub *Publication) getCount(sess *dbr.Session) (int, error) {
 
 func (pub *Publication) getFilteredCount(p *query.Params, sess *dbr.Session) (int, error) {
 	rmap := new(publication.Publication).GetMap()
-	builders := resources.BuildFilterQuery(rmap, p)
-	builders = append(builders, dbr.Eq("pub.is_obsolete", "0"))
+	builders := append(
+		resources.BuildFilterQuery(rmap, p),
+		dbr.Eq("pub.is_obsolete", "0"),
+	)
 	var count int
-	err := sess.Select("count(pub_id) as records").
+	selBuilder := sess.Select("count(pub_id) AS records").
 		From("pub").
-		Where(dbr.And(builders...)).
-		LoadValue(&count)
+		Where(dbr.And(builders...))
+	err := selBuilder.LoadValue(&count)
 	return count, err
 }
 
 func (pub *Publication) getAllSelectFilteredRows(p *query.Params, f *query.Fields, sess *dbr.Session, pageProps *pagination.Props) ([]*publication.Publication, error) {
-	rmap := new(publication.Publication).GetMap()
-	builders := resources.BuildFilterQuery(rmap, p)
-	builders = append(builders, dbr.Eq("pub.is_obsolete", "0"))
+	builders := append(
+		resources.BuildFilterQuery(new(publication.Publication).GetMap(), p),
+		dbr.Eq("pub.is_obsolete", "0"),
+	)
 	pubRows := make([]*pubData, 0)
 	pubSlice := make([]*publication.Publication, 0)
 	columns := []string{"pub.uniquename"}
@@ -749,6 +790,14 @@ func (pub *Publication) getAuthors(sess *dbr.Session, id string) ([]*publication
 		return authors, err
 	}
 	return authors, nil
+}
+
+func SetPagination(count int, pageProps *pagination.Props) {
+	if pageProps.Entries >= count {
+		pageProps.Entries = count
+		pageProps.Current = 1
+	}
+	pageProps.Records = count
 }
 
 func includeAuthors(p *query.Params) bool {
