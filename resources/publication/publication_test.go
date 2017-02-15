@@ -449,15 +449,15 @@ func TestGetAllWithFilter(t *testing.T) {
 
 	// mock the sql backend with test data
 	countMockRow := sqlmock.NewRows([]string{"records"})
-	countMockRow.AddRow("7")
-	mock.ExpectQuery("SELECT count(pub_id) AS records FROM pub WHERE pub.title LIKE '%pand%' AND (.+)").
+	countMockRow.AddRow("3")
+	mock.ExpectQuery(`SELECT count\(pub_id\) AS records FROM pub WHERE \(\(pub.title ILIKE '%Exp%'\) AND.*\)`).
 		WillReturnRows(countMockRow)
 
 	pubMockRow := sqlmock.NewRows(pubColumns)
 	for _, v := range getPubTestDataRows() {
 		pubMockRow.FromCSVString(strings.Join(v, ","))
 	}
-	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+) LIMIT 3 OFFSET 3").
+	mock.ExpectQuery(`SELECT (.+) FROM pub JOIN (.+) WHERE \(\(pub.title ILIKE '%Exp%'\) AND.*\) LIMIT 3 OFFSET 0`).
 		WillReturnRows(pubMockRow)
 
 	for _, r := range getPropsTestDataRows() {
@@ -474,7 +474,7 @@ func TestGetAllWithFilter(t *testing.T) {
 	// run the http request
 	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
 		GetAll("/publications").
-		AddFilter("title", "pand").
+		AddFilter("title", "Exp").
 		Expect().
 		Status(http.StatusOK).
 		JSON()
@@ -483,35 +483,33 @@ func TestGetAllWithFilter(t *testing.T) {
 	// tests the members
 	members, _ := cont.S("data").Children()
 	assert.Equal(len(members), 3, "should have 3 members")
-	//for i, v := range []string{"10", "11", "12"} {
-	//testMembers(assert, members[i], v)
-	//}
+	for i, v := range []string{"10", "11", "12"} {
+		testMembers(assert, members[i], v)
+	}
 
 	//// test the meta section
-	//if assert.True(cont.Exists("meta", "pagination")) {
-	//num, _ := cont.Path("meta.pagination.number").Data().(float64)
-	//assert.Equal(pageNum, int(num), "should match the current page number")
-	//size, _ := cont.Path("meta.pagination.size").Data().(float64)
-	//assert.Equal(pageSize, int(size), "should match the page size")
-	//last, _ := cont.Path("meta.pagination.total").Data().(float64)
-	//assert.Equal(3, int(last), "should match the last page")
-	//rec, _ := cont.Path("meta.pagination.records").Data().(float64)
-	//assert.Equal(7, int(rec), "should match the total records")
-	//}
+	if assert.True(cont.Exists("meta", "pagination")) {
+		num, _ := cont.Path("meta.pagination.number").Data().(float64)
+		assert.Equal(1, int(num), "should match the current page number")
+		size, _ := cont.Path("meta.pagination.size").Data().(float64)
+		assert.Equal(3, int(size), "should match the page size")
+		last, _ := cont.Path("meta.pagination.total").Data().(float64)
+		assert.Equal(1, int(last), "should match the last page")
+		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
+		assert.Equal(3, int(rec), "should match the total records")
+	}
 	//// test the pagination links
-	//if assert.True(cont.Exists("links")) {
-	//fmap := map[string]int{
-	//"first": 1,
-	//"last":  3,
-	//"next":  3,
-	//"prev":  1,
-	//"self":  2,
-	//}
-	//lnk := cont.Path("links")
-	//for k, v := range fmap {
-	//testPageLink(assert, lnk, k, v, 3)
-	//}
-	//}
+	if assert.True(cont.Exists("links")) {
+		fmap := map[string]int{
+			"first": 1,
+			"last":  1,
+			"self":  1,
+		}
+		lnk := cont.Path("links")
+		for k, v := range fmap {
+			testPageLink(assert, lnk, k, v, 3)
+		}
+	}
 	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
 
 	if err = mock.ExpectationsWereMet(); err != nil {
