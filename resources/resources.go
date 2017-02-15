@@ -76,14 +76,12 @@ func GetPaginationProp(r *http.Request) *pagination.Props {
 
 // BuildFilterQuery builds query from filter parameters
 func BuildFilterQuery(rowmap map[string]string, p *query.Params) []dbr.Builder {
-	builders := make([]dbr.Builder, len(p.Filters)+1)
-	i := 1
+	var builders []dbr.Builder
 	for k, v := range p.Filters {
-		builders[i] = dbr.Expr(
+		builders = append(builders, dbr.Expr(
 			fmt.Sprintf("%s ILIKE ?", rowmap[k]),
 			fmt.Sprintf("%%%s%%", v),
-		)
-		i = i + 1
+		))
 	}
 	return builders
 }
