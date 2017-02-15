@@ -439,6 +439,89 @@ func TestGetAll(t *testing.T) {
 	}
 }
 
+// TestGetAllWithInclude runs /publications?include=authors
+func TestGetAllWithInclude(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error %s during stub database connection\n", err)
+	}
+	defer db.Close()
+
+	// mock the sql backend with test data
+	countMockRow := sqlmock.NewRows([]string{"records"})
+	countMockRow.AddRow("3")
+	mock.ExpectQuery("SELECT (.+) FROM pub").
+		WillReturnRows(countMockRow)
+
+	pubMockRow := sqlmock.NewRows(pubColumns)
+	for _, v := range getPubTestDataRows() {
+		pubMockRow.FromCSVString(strings.Join(v, ","))
+	}
+	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+) LIMIT 3 OFFSET 0").
+		WillReturnRows(pubMockRow)
+
+	for _, r := range getPropsTestDataRows() {
+		propMockRow := sqlmock.NewRows([]string{"value", "term"})
+		for k, v := range r {
+			propMockRow.AddRow(v, k)
+		}
+		mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
+			WillReturnRows(propMockRow)
+	}
+
+	for i := 0; i < len(getPubTestDataRows()); i++ {
+		authorMockRow := sqlmock.NewRows(authorColumns)
+		for _, d := range authorData {
+			authorMockRow.AddRow(d[0], d[1], d[2], d[3])
+		}
+		mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
+	}
+
+	// create the app instance with mock db
+	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
+	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
+		GetAll("/publications").
+		AddIncludes("authors").
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+
+	assert := assert.New(t)
+	// tests the members
+	members, _ := cont.S("data").Children()
+	assert.Equal(len(members), 3, "should have 3 members")
+	for i, v := range []string{"10", "11", "12"} {
+		testMembers(assert, members[i], v)
+	}
+	// test the meta section
+	if assert.True(cont.Exists("meta", "pagination")) {
+		num, _ := cont.Path("meta.pagination.number").Data().(float64)
+		assert.Equal(1, int(num), "should match the current page number")
+		size, _ := cont.Path("meta.pagination.size").Data().(float64)
+		assert.Equal(3, int(size), "should match the page size")
+		last, _ := cont.Path("meta.pagination.total").Data().(float64)
+		assert.Equal(1, int(last), "should match the last page")
+		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
+		assert.Equal(3, int(rec), "should match the total records")
+	}
+	// test the pagination links
+	if assert.True(cont.Exists("links")) {
+		fmap := map[string]int{
+			"first": 1,
+			"last":  1,
+			"self":  1,
+		}
+		lnk := cont.Path("links")
+		for k, v := range fmap {
+			testPageLink(assert, lnk, k, v, 3)
+		}
+	}
+	t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
+
 // TestGetAll runs /publications?filter[title]=pand
 func TestGetAllWithFilter(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -487,7 +570,7 @@ func TestGetAllWithFilter(t *testing.T) {
 		testMembers(assert, members[i], v)
 	}
 
-	//// test the meta section
+	// test the meta section
 	if assert.True(cont.Exists("meta", "pagination")) {
 		num, _ := cont.Path("meta.pagination.number").Data().(float64)
 		assert.Equal(1, int(num), "should match the current page number")
@@ -498,7 +581,7 @@ func TestGetAllWithFilter(t *testing.T) {
 		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
 		assert.Equal(3, int(rec), "should match the total records")
 	}
-	//// test the pagination links
+	// test the pagination links
 	if assert.True(cont.Exists("links")) {
 		fmap := map[string]int{
 			"first": 1,
