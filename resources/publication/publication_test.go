@@ -468,10 +468,9 @@ func TestGetAllWithInclude(t *testing.T) {
 		mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
 			WillReturnRows(propMockRow)
 	}
-
-	for i := 0; i < len(getPubTestDataRows()); i++ {
+	for y := 0; y < len(authorData); y += 2 {
 		authorMockRow := sqlmock.NewRows(authorColumns)
-		for _, d := range authorData {
+		for _, d := range authorData[y : y+2] {
 			authorMockRow.AddRow(d[0], d[1], d[2], d[3])
 		}
 		mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
@@ -516,7 +515,31 @@ func TestGetAllWithInclude(t *testing.T) {
 			testPageLink(assert, lnk, k, v, 3)
 		}
 	}
-	t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+	// test the include section
+	includes, _ := cont.S("included").Children()
+	assert.Equal(len(includes), 6, "should have six includes")
+	for _, m := range includes {
+		for _, f := range []string{"type", "id", "attributes", "relationships"} {
+			assert.True(m.Exists(f), fmt.Sprintf("include resource should have %s field", f))
+		}
+		tval, _ := m.Path("type").Data().(string)
+		assert.Equal(tval, "authors", "should be authors type")
+		assert.True(
+			m.Exists("relationships", "publications", "links", "related"),
+			"include resource should have publications link field",
+		)
+		value, _ := m.Path("relationships.publications.links.related").Data().(string)
+		id, _ := m.Path("id").Data().(string)
+		assert.Equal(
+			value,
+			fmt.Sprintf("%s/authors/%s/publications", mwtest.APIServer(), id),
+			"should match the related links of authors relationships",
+		)
+	}
+	// last entry from include section
+	name, _ := includes[5].Path("attributes.last_name").Data().(string)
+	assert.Equal(name, "Lynch", "should match the last name of author in includes member")
+	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectation error %s\n", err)
 	}
