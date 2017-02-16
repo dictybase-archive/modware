@@ -170,6 +170,7 @@ func TestGetWithInclude(t *testing.T) {
 	}
 }
 
+// TestGetWithSparseField run /publication/99?fields[publications]=journal,issue,pages,source,year,doi,month
 func TestGetWithSparseField(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -238,7 +239,6 @@ func TestGetWithSparseField(t *testing.T) {
 	}
 	for _, f := range []string{"title", "abstract", "status"} {
 		assert.False(cont.Exists("data", "attributes", f), fmt.Sprintf("should not have %s field", f))
-
 	}
 	if assert.True(cont.Exists("data", "relationships", "authors", "links", "related")) {
 		value, _ := cont.Path("data.relationships.authors.links.related").Data().(string)
@@ -545,7 +545,7 @@ func TestGetAllWithInclude(t *testing.T) {
 	}
 }
 
-// TestGetAll runs /publications?filter[title]=pand
+// TestGetAll runs /publications?filter[title]=Exp
 func TestGetAllWithFilter(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -623,6 +623,126 @@ func TestGetAllWithFilter(t *testing.T) {
 	}
 }
 
+// TestGetAllWithFilterAndRelSparseField runs /publications?include=authors&filter[title]=Exp&fields[publications]=doi,journal&fields[authors]=last_name
+func TestGetAllWithFilterAndRelSparseField(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error %s during stub database connection\n", err)
+	}
+	defer db.Close()
+
+	// mock the sql backend with test data
+	countMockRow := sqlmock.NewRows([]string{"records"})
+	countMockRow.AddRow("3")
+	mock.ExpectQuery(`SELECT count\(pub_id\) AS records FROM pub WHERE \(\(pub.title ILIKE '%Exp%'\) AND.*\)`).
+		WillReturnRows(countMockRow)
+
+	pubMockRow := sqlmock.NewRows(selectPubCols2)
+	for _, v := range getSelectPubTestDataRows() {
+		pubMockRow.FromCSVString(strings.Join(v, ","))
+	}
+	mock.ExpectQuery(`SELECT (.+) FROM pub JOIN (.+) WHERE \(\(pub.title ILIKE '%Exp%'\) AND.*\) LIMIT 3 OFFSET 0`).
+		WillReturnRows(pubMockRow)
+
+	for _, r := range getSelectPropsTestDataRows() {
+		propMockRow := sqlmock.NewRows([]string{"value", "term"})
+		for k, v := range r {
+			propMockRow.AddRow(v, k)
+		}
+		mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
+			WillReturnRows(propMockRow)
+	}
+	for y := 0; y < len(selectauthorData2); y += 2 {
+		authorMockRow := sqlmock.NewRows(selectauthorColumns2)
+		for _, d := range selectauthorData2[y : y+2] {
+			authorMockRow.AddRow(d[0], d[1])
+		}
+		mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
+	}
+
+	// create the app instance with mock db
+	spf := []string{"doi", "journal"}
+	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
+	cont := mwtest.NewHTTPExpectBuilder(t, mwtest.APIServer(), pubResource).
+		GetAll("/publications").
+		AddIncludes("authors").
+		AddFieldSets("publications", false, spf...).
+		AddFieldSets("authors", true, "last_name").
+		AddFilter("title", "Exp").
+		Expect().
+		Status(http.StatusOK).
+		JSON()
+
+	assert := assert.New(t)
+	// tests the members
+	members, _ := cont.S("data").Children()
+	assert.Equal(len(members), 3, "should have 3 members")
+	for i, v := range []string{"10", "11", "12"} {
+		testMembers(assert, members[i], v)
+		for _, f := range []string{"title", "abstract", "status"} {
+			assert.False(members[i].Exists("attributes", f), fmt.Sprintf("should not have %s field", f))
+		}
+		for _, f := range []string{"doi", "journal"} {
+			assert.True(members[i].Exists("attributes", f), fmt.Sprintf("should have %s field", f))
+		}
+	}
+	// test the meta section
+	if assert.True(cont.Exists("meta", "pagination")) {
+		num, _ := cont.Path("meta.pagination.number").Data().(float64)
+		assert.Equal(1, int(num), "should match the current page number")
+		size, _ := cont.Path("meta.pagination.size").Data().(float64)
+		assert.Equal(3, int(size), "should match the page size")
+		last, _ := cont.Path("meta.pagination.total").Data().(float64)
+		assert.Equal(1, int(last), "should match the last page")
+		rec, _ := cont.Path("meta.pagination.records").Data().(float64)
+		assert.Equal(3, int(rec), "should match the total records")
+	}
+	// test the pagination links
+	if assert.True(cont.Exists("links")) {
+		fmap := map[string]int{
+			"first": 1,
+			"last":  1,
+			"self":  1,
+		}
+		lnk := cont.Path("links")
+		for k, v := range fmap {
+			testPageLink(assert, lnk, k, v, 3)
+		}
+	}
+	// test the include section
+	includes, _ := cont.S("included").Children()
+	assert.Equal(len(includes), 6, "should have six includes")
+	for _, m := range includes {
+		for _, f := range []string{"type", "id", "attributes", "relationships"} {
+			assert.True(m.Exists(f), fmt.Sprintf("include resource should have %s field", f))
+		}
+		tval, _ := m.Path("type").Data().(string)
+		assert.Equal(tval, "authors", "should be authors type")
+		assert.True(
+			m.Exists("relationships", "publications", "links", "related"),
+			"include resource should have publications link field",
+		)
+		value, _ := m.Path("relationships.publications.links.related").Data().(string)
+		id, _ := m.Path("id").Data().(string)
+		assert.Equal(
+			value,
+			fmt.Sprintf("%s/authors/%s/publications", mwtest.APIServer(), id),
+			"should match the related links of authors relationships",
+		)
+		for _, f := range []string{"rank", "given_names"} {
+			assert.False(m.Exists("attributes", f), "should not have %s field", f)
+		}
+		assert.True(m.Exists("attributes", "last_name"), "should have last_name field")
+	}
+	// last entry from include section
+	name, _ := includes[5].Path("attributes.last_name").Data().(string)
+	assert.Equal(name, "Lynch", "should match the last name of author in includes member")
+	//t.Log(string(mwtest.IndentJSON(cont.Bytes())))
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectation error %s\n", err)
+	}
+}
+
 func testPageLink(assert *assert.Assertions, cont *gabs.Container, field string, pageNum, pageSize int) {
 	if assert.True(cont.Exists(field), fmt.Sprintf("should have %s page field", field)) {
 		value, _ := cont.Path(field).Data().(string)
@@ -642,10 +762,6 @@ func testMembers(assert *assert.Assertions, cont *gabs.Container, id string) {
 	if assert.True(cont.Exists("id"), "should have ID member") {
 		value, _ := cont.Path("id").Data().(string)
 		assert.Equal(value, id, "should match the id value")
-	}
-	if assert.True(cont.Exists("attributes", "source")) {
-		value, _ := cont.Path("attributes.source").Data().(string)
-		assert.Equal(value, "pubmed", "should match the source value")
 	}
 	if assert.True(cont.Exists("relationships", "authors", "links", "related")) {
 		value, _ := cont.Path("relationships.authors.links.related").Data().(string)

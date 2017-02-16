@@ -59,6 +59,29 @@ var selectpubTestData = [][]string{
 	},
 }
 
+var selectPubCols2 = []string{
+	"uniquename",
+	"series_name",
+}
+
+var selectpubTestData2 = [][]string{
+	[]string{
+		"99",
+		"Genesis",
+	},
+}
+
+func getSelectPubTestDataRows() [][]string {
+	var testData [][]string
+	for i := 10; i <= 12; i++ {
+		rowData := make([]string, len(selectpubTestData2[0]))
+		_ = copy(rowData, selectpubTestData2[0])
+		rowData[0] = strconv.Itoa(i)
+		testData = append(testData, rowData)
+	}
+	return testData
+}
+
 var propTestData = []map[string]string{
 	map[string]string{
 		"doi":      "10.1002/dvg.22867",
@@ -85,6 +108,21 @@ var selectpropTestData = []map[string]string{
 	},
 }
 
+var selectpropTestData2 = []map[string]string{
+	map[string]string{
+		"doi": "10.1002/dvg.22867",
+	},
+}
+
+func getSelectPropsTestDataRows() []map[string]string {
+	num := len(getSelectPubTestDataRows())
+	testData := make([]map[string]string, num)
+	for i := 0; i < num; i++ {
+		testData[i] = selectpropTestData2[0]
+	}
+	return testData
+}
+
 var authorColumns = []string{
 	"pubauthor_id",
 	"rank",
@@ -97,12 +135,30 @@ var selectauthorColumns = []string{
 	"rank",
 }
 
+var selectauthorColumns2 = []string{
+	"pubauthor_id",
+	"surname",
+}
+
 var authorData = [][]string{
 	[]string{"23", "3", "Wardroper", "A"},
 	[]string{"12", "1", "Quail", "MA"},
+	[]string{"13", "1", "Quail", "MA"},
+	[]string{"1", "1", "Johnson", "S"},
+	[]string{"2", "1", "Procise", "C"},
+	[]string{"29", "1", "Lynch", "M"},
 }
 
 var selectauthorData = [][]string{
 	[]string{"23", "3"},
 	[]string{"12", "1"},
+}
+
+var selectauthorData2 = [][]string{
+	[]string{"23", "Wardroper"},
+	[]string{"12", "Quail"},
+	[]string{"13", "Quail"},
+	[]string{"1", "Johnson"},
+	[]string{"2", "Procise"},
+	[]string{"29", "Lynch"},
 }

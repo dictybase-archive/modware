@@ -1,7 +1,6 @@
 package publication
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/dictyBase/apihelpers/apherror"
@@ -45,7 +44,6 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 	//Validates all params
 	p, ok, err := validate.Params(r, &publication.Publication{})
 	if err != nil {
-		fmt.Println(err.Error())
 		apherror.JSONAPIError(w, err)
 		return
 	}
@@ -95,7 +93,6 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 	//Validates all params
 	p, ok, err := validate.Params(r, &publication.Publication{})
 	if err != nil {
-		fmt.Println(err.Error())
 		apherror.JSONAPIError(w, err)
 		return
 	}
