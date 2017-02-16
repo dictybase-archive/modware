@@ -161,5 +161,5 @@ func (pub *Publication) GetAttributeFields(name string) []string {
 
 // GetMap implements jsapi.AttributeToDbRowMapper interface
 func (pub *Publication) GetMap() map[string]string {
-	return map[string]string{"title": "title"}
+	return map[string]string{"title": "pub.title"}
 }
