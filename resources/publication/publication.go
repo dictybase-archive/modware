@@ -1,6 +1,7 @@
 package publication
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/dictyBase/apihelpers/apherror"
@@ -300,14 +301,30 @@ func (pub *Publication) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pub *Publication) Create(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (pub *Publication) Update(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (pub *Publication) Delete(w http.ResponseWriter, r *http.Request) {
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (pub *Publication) getRows(sess *dbr.Session, id string) (*publication.Publication, error) {
@@ -839,21 +856,46 @@ func (a *Author) GetDbh() *dbr.Connection {
 }
 
 func (a *Author) Get(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (a *Author) GetAll(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (a *Author) Create(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (a *Author) Update(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
 
 func (a *Author) Delete(w http.ResponseWriter, r *http.Request) {
-
+	apherror.JSONAPIError(
+		w,
+		apherror.ErrNotFound.New(
+			fmt.Sprintf("requested resource %s not found", r.URL.Path),
+		),
+	)
 }
