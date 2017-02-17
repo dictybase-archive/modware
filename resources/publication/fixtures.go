@@ -140,6 +140,11 @@ var selectauthorColumns2 = []string{
 	"surname",
 }
 
+var singleAuthorData = [][]string{
+	[]string{"23", "3", "Wardroper", "A"},
+	[]string{"12", "1", "Quail", "MA"},
+}
+
 var authorData = [][]string{
 	[]string{"23", "3", "Wardroper", "A"},
 	[]string{"12", "1", "Quail", "MA"},

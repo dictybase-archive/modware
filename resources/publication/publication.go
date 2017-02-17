@@ -51,40 +51,63 @@ func (pub *Publication) Get(w http.ResponseWriter, r *http.Request) {
 	sess := pub.GetDbh().NewSession(nil)
 	pubStr := new(publication.Publication)
 	authors := make([]*publication.Author, 0)
-	if ok {
-		switch {
-		case includeAuthors(p):
-			authors, err = pub.getAuthors(sess, id)
-			if err != nil {
-				apherror.DatabaseError(w, err)
-				return
-			}
-		case p.HasSparseFields:
-			if _, ok := p.SparseFields["publications"]; ok {
-				pubStr, err = pub.getSelectedRows(p.SparseFields["publications"], sess, id)
-				if err != nil {
-					apherror.DatabaseError(w, err)
-					return
-				}
-			}
-			if _, ok := p.SparseFields["authors"]; ok {
-				authors, err = pub.getSelectedAuthors(p.SparseFields["authors"], sess, id)
-				if err != nil {
-					apherror.DatabaseError(w, err)
-					return
-				}
-			}
-		}
-	}
-	if len(pubStr.ID) == 0 {
+	if !ok { // request without any query parameters
 		pubStr, err = pub.getRows(sess, id)
 		if err != nil {
 			apherror.DatabaseError(w, err)
 			return
 		}
+		aphrender.Resource(pubStr, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
+		return
 	}
-	if len(authors) > 0 {
-		pubStr.Authors = authors
+	switch {
+	case p.HasSparseFields:
+		if _, ok := p.SparseFields["publications"]; ok {
+			pubStr, err = pub.getSelectedRows(p.SparseFields["publications"], sess, id)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+		}
+		if _, ok := p.SparseFields["authors"]; ok {
+			if len(pubStr.ID) == 0 {
+				pubStr, err = pub.getRows(sess, id)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+			}
+			authors, err = pub.getSelectedAuthors(p.SparseFields["authors"], sess, id)
+			if err != nil {
+				apherror.DatabaseError(w, err)
+				return
+			}
+		} else {
+			if p.HasIncludes {
+				authors, err = pub.getAuthors(sess, id)
+				if err != nil {
+					apherror.DatabaseError(w, err)
+					return
+				}
+			}
+		}
+		if len(authors) > 0 {
+			pubStr.Authors = authors
+		}
+	default:
+		pubStr, err = pub.getRows(sess, id)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		authors, err = pub.getAuthors(sess, id)
+		if err != nil {
+			apherror.DatabaseError(w, err)
+			return
+		}
+		if len(authors) > 0 {
+			pubStr.Authors = authors
+		}
 	}
 	aphrender.Resource(pubStr, resources.GetAPIServerInfo(r, pub.PathPrefix), w)
 }

@@ -93,12 +93,6 @@ func TestGetWithInclude(t *testing.T) {
 	}
 	defer db.Close()
 
-	authorMockRow := sqlmock.NewRows(authorColumns)
-	for _, d := range authorData {
-		authorMockRow.AddRow(d[0], d[1], d[2], d[3])
-	}
-	mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
-
 	pubMockRow := sqlmock.NewRows(pubColumns)
 	pubMockRow.FromCSVString(strings.Join(pubTestData[0], ","))
 	mock.ExpectQuery("SELECT (.+) FROM pub JOIN (.+)").
@@ -110,6 +104,11 @@ func TestGetWithInclude(t *testing.T) {
 	}
 	mock.ExpectQuery("SELECT (.+) FROM pubprop JOIN (.+) JOIN (.+) JOIN (.+)").
 		WillReturnRows(propMockRow)
+	authorMockRow := sqlmock.NewRows(authorColumns)
+	for _, d := range singleAuthorData {
+		authorMockRow.AddRow(d[0], d[1], d[2], d[3])
+	}
+	mock.ExpectQuery("SELECT (.+) FROM pubauthor JOIN (.+)").WillReturnRows(authorMockRow)
 
 	// create the app instance with mock db
 	pubResource := &Publication{Dbh: GetMockedDb(db), PathPrefix: mwtest.PathPrefix}
